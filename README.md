@@ -1,4 +1,4 @@
-# julcutUser_FE
+# chookjibupUser_FE
 
 AI 기반 축제 대기열 배치 설계 및 대기시간 안내 플랫폼 — 방문자용 웹앱(모바일 사이즈) 프론트엔드.
 
