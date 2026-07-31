@@ -1,11 +1,21 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getApiErrorMessage } from "@/lib/api/httpError";
+import Link from "next/link";
+import {
+  API_ERROR_CODE,
+  getApiErrorCode,
+  getApiErrorMessage,
+  isAuthExpiredError,
+} from "@/lib/api/httpError";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
 import { toggleWishlist } from "@/features/wishlist/api";
 import { getFestivalDetail } from "./api";
-import type { BoothCongestionLevel, FestivalProgressStatus } from "./types";
+import type {
+  BoothCongestionLevel,
+  FestivalProgressStatus,
+  UserFestivalDetailResponse,
+} from "./types";
 
 const STATUS_LABEL: Record<FestivalProgressStatus, string> = {
   UPCOMING: "진행 예정",
@@ -47,6 +57,16 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: number }) {
   }
 
   if (query.isError) {
+    if (getApiErrorCode(query.error) === API_ERROR_CODE.FESTIVAL_NOT_FOUND) {
+      return (
+        <div className="flex flex-col items-center gap-2 p-8">
+          <p className="body-regular text-zinc-500">존재하지 않는 축제예요.</p>
+          <Link href="/" className="body-regular-bold text-primary">
+            목록으로 돌아가기
+          </Link>
+        </div>
+      );
+    }
     return <p className="body-small p-4 text-error">{getApiErrorMessage(query.error)}</p>;
   }
 
@@ -84,6 +104,14 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: number }) {
           </button>
         ) : null}
       </div>
+
+      {wishlistMutation.isError ? (
+        <p className="body-caption text-error">
+          {isAuthExpiredError(wishlistMutation.error)
+            ? "로그인이 만료됐어요. 다시 로그인해 주세요."
+            : getApiErrorMessage(wishlistMutation.error)}
+        </p>
+      ) : null}
 
       {festival.content ? <p className="body-regular text-zinc-700">{festival.content}</p> : null}
 
@@ -125,23 +153,69 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: number }) {
         </div>
       ) : null}
 
-      {festival.roadmap ? (
-        <div className="flex flex-col gap-2">
-          <p className="body-regular-bold text-zinc-950">로드맵</p>
-          {festival.roadmap.baseImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={festival.roadmap.baseImageUrl}
-              alt="축제 로드맵"
-              className="w-full rounded-lg border border-zinc-200 object-contain"
-            />
-          ) : (
-            <p className="body-caption text-zinc-400">
-              아이콘 {festival.roadmap.icons.length}개가 배치돼 있습니다. (지도 렌더링은 추후 구현)
-            </p>
-          )}
-        </div>
-      ) : null}
+      {festival.roadmap ? <RoadmapView roadmap={festival.roadmap} /> : null}
     </div>
   );
+}
+
+function RoadmapView({ roadmap }: { roadmap: NonNullable<UserFestivalDetailResponse["roadmap"]> }) {
+  const { baseImageUrl, canvasWidth, canvasHeight, icons } = roadmap;
+
+  // icon_builder 타입은 캔버스 크기 기준 좌표에 아이콘을 절대 위치로 얹는다.
+  if (canvasWidth && canvasHeight && icons.length > 0) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="body-regular-bold text-zinc-950">로드맵</p>
+        <div
+          className="relative w-full overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50"
+          style={{ aspectRatio: `${canvasWidth} / ${canvasHeight}` }}
+        >
+          {baseImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={baseImageUrl}
+              alt="축제 로드맵 배경"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : null}
+          {icons.map((icon) => (
+            <div
+              key={icon.placementId}
+              className="absolute flex flex-col items-center"
+              style={{
+                left: `${(Number(icon.positionX) / canvasWidth) * 100}%`,
+                top: `${(Number(icon.positionY) / canvasHeight) * 100}%`,
+                transform: `translate(-50%, -50%) rotate(${icon.rotationDeg}deg)`,
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={icon.iconImageUrl} alt={icon.iconName} className="size-6" />
+              {icon.label ? (
+                <span className="body-caption rounded bg-white/80 px-1 text-zinc-700">
+                  {icon.label}
+                </span>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // uploaded_image 타입(또는 아이콘이 없는 경우)은 원본 이미지만 보여준다.
+  if (baseImageUrl) {
+    return (
+      <div className="flex flex-col gap-2">
+        <p className="body-regular-bold text-zinc-950">로드맵</p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={baseImageUrl}
+          alt="축제 로드맵"
+          className="w-full rounded-lg border border-zinc-200 object-contain"
+        />
+      </div>
+    );
+  }
+
+  return null;
 }

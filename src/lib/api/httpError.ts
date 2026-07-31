@@ -21,3 +21,30 @@ export function getApiErrorCode(error: unknown): number | null {
   }
   return null;
 }
+
+/** chookjibupUser_BE FEATURE_SPEC.md 4절 에러 코드 전체 목록. */
+export const API_ERROR_CODE = {
+  BAD_REQUEST: 40000,
+  INVALID_REQUEST: 40001,
+  AUTH_KAKAO_CODE_REQUIRED: 40002,
+  UNAUTHORIZED: 40100,
+  AUTH_TOKEN_INVALID: 40103,
+  AUTH_TOKEN_EXPIRED: 40104,
+  AUTH_KAKAO_LOGIN_FAILED: 40105,
+  FORBIDDEN: 40300,
+  USER_NOT_FOUND: 40401,
+  FESTIVAL_NOT_FOUND: 40402,
+  INTERNAL_SERVER_ERROR: 50000,
+} as const;
+
+const AUTH_EXPIRED_CODES: number[] = [
+  API_ERROR_CODE.UNAUTHORIZED,
+  API_ERROR_CODE.AUTH_TOKEN_INVALID,
+  API_ERROR_CODE.AUTH_TOKEN_EXPIRED,
+];
+
+/** 로그인이 풀려서(만료/위조/미인증) 다시 로그인해야 하는 에러인지. */
+export function isAuthExpiredError(error: unknown): boolean {
+  const code = getApiErrorCode(error);
+  return code !== null && AUTH_EXPIRED_CODES.includes(code);
+}

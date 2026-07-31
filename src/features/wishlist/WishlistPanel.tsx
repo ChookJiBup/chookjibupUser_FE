@@ -11,6 +11,12 @@ function formatDateRange(startDate: string | null, endDate: string | null) {
   return `${startDate} ~ ${endDate}`;
 }
 
+function formatWishlistedAt(wishlistedAt: string) {
+  const date = new Date(wishlistedAt);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
+}
+
 export function WishlistPanel() {
   const [page, setPage] = useState(0);
 
@@ -44,7 +50,14 @@ export function WishlistPanel() {
           href={`/festivals/${festival.festivalId}`}
           className="flex flex-col gap-1 border-b border-zinc-200 px-4 py-4"
         >
-          <p className="body-regular-bold text-zinc-950">{festival.name}</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="body-regular-bold text-zinc-950">{festival.name}</p>
+            {formatWishlistedAt(festival.wishlistedAt) ? (
+              <span className="body-caption shrink-0 text-zinc-400">
+                {formatWishlistedAt(festival.wishlistedAt)} 찜함
+              </span>
+            ) : null}
+          </div>
           <p className="body-small text-zinc-500">
             {festival.eventPlace ?? festival.address ?? ""}
           </p>
