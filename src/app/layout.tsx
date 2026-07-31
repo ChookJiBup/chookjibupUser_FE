@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
+import { Header } from "@/components/layout/Header";
+import { Providers } from "./providers";
 
 const pretendard = localFont({
   src: "../../node_modules/pretendard/dist/web/variable/woff2/PretendardVariable.woff2",
@@ -30,7 +32,12 @@ export default function RootLayout({
   return (
     <html lang="ko" className={`${pretendard.variable} ${roboto.variable} h-full antialiased`}>
       <body className="min-h-full bg-gray-100">
-        <div className="mx-auto flex min-h-full w-full max-w-md flex-col bg-white">{children}</div>
+        <Providers>
+          <div className="mx-auto flex min-h-full w-full max-w-md flex-col bg-white">
+            <Header />
+            <main className="flex flex-1 flex-col">{children}</main>
+          </div>
+        </Providers>
       </body>
     </html>
   );
