@@ -1,7 +1,8 @@
 export type FestivalProgressStatus = "UPCOMING" | "ONGOING" | "COMPLETED";
 
 export interface UserFestivalResponse {
-  festivalId: number;
+  /** 상세/찜/리뷰 API 호출에 쓰는 값. 백엔드는 내부 festivalId(숫자 PK)를 노출하지 않는다. */
+  publicId: string;
   name: string;
   eventPlace: string | null;
   address: string | null;
@@ -63,7 +64,8 @@ export interface RoadmapResponse {
 }
 
 export interface UserFestivalDetailResponse {
-  festivalId: number;
+  /** 찜/리뷰 API 호출에 쓰는 값. 백엔드는 내부 festivalId(숫자 PK)를 노출하지 않는다. */
+  publicId: string;
   name: string;
   eventPlace: string | null;
   address: string | null;

@@ -1,12 +1,12 @@
 import type { PageMeta } from "@/features/festivals/types";
 
 export interface WishlistToggleResponse {
-  festivalId: number;
+  festivalPublicId: string;
   wishlisted: boolean;
 }
 
 export interface MyWishlistFestivalResponse {
-  festivalId: number;
+  festivalPublicId: string;
   name: string;
   eventPlace: string | null;
   address: string | null;

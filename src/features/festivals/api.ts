@@ -9,9 +9,11 @@ export async function getFestivals(page = 0, size = 20): Promise<UserFestivalPag
   return data.data;
 }
 
-export async function getFestivalDetail(festivalId: number): Promise<UserFestivalDetailResponse> {
+export async function getFestivalDetail(
+  festivalPublicId: string,
+): Promise<UserFestivalDetailResponse> {
   const { data } = await userApiClient.get<ApiResponse<UserFestivalDetailResponse>>(
-    `/festivals/${festivalId}`,
+    `/festivals/${festivalPublicId}`,
   );
   return data.data;
 }

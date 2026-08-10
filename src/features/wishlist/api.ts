@@ -2,9 +2,9 @@ import { userApiClient } from "@/lib/api/userApiClient";
 import type { ApiResponse } from "@/lib/api/types";
 import type { MyWishlistPageResponse, WishlistToggleResponse } from "./types";
 
-export async function toggleWishlist(festivalId: number): Promise<WishlistToggleResponse> {
+export async function toggleWishlist(festivalPublicId: string): Promise<WishlistToggleResponse> {
   const { data } = await userApiClient.post<ApiResponse<WishlistToggleResponse>>(
-    `/wishlists/${festivalId}/toggle`,
+    `/wishlists/${festivalPublicId}/toggle`,
   );
   return data.data;
 }
