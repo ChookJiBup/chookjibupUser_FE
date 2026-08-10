@@ -1,12 +1,14 @@
 import type { PageMeta } from "@/features/festivals/types";
 
 export interface WishlistToggleResponse {
-  festivalPublicId: string;
+  /** 백엔드 JSON 키는 festivalPublicId다 — api.ts에서 받는 시점에 id로 매핑한다. */
+  id: string;
   wishlisted: boolean;
 }
 
 export interface MyWishlistFestivalResponse {
-  festivalPublicId: string;
+  /** 백엔드 JSON 키는 festivalPublicId다 — api.ts에서 받는 시점에 id로 매핑한다. */
+  id: string;
   name: string;
   eventPlace: string | null;
   address: string | null;
