@@ -1,8 +1,11 @@
 export type FestivalProgressStatus = "UPCOMING" | "ONGOING" | "COMPLETED";
 
 export interface UserFestivalResponse {
-  /** 상세/찜/리뷰 API 호출에 쓰는 값. 백엔드는 내부 festivalId(숫자 PK)를 노출하지 않는다. */
-  publicId: string;
+  /**
+   * 상세/찜/리뷰 API 호출에 쓰는 값. 백엔드 응답의 실제 JSON 키는 여전히 `publicId`다 —
+   * `api.ts`의 fetch 함수가 받는 시점에 `id`로 매핑해서 돌려준다.
+   */
+  id: string;
   name: string;
   eventPlace: string | null;
   address: string | null;
@@ -64,8 +67,11 @@ export interface RoadmapResponse {
 }
 
 export interface UserFestivalDetailResponse {
-  /** 찜/리뷰 API 호출에 쓰는 값. 백엔드는 내부 festivalId(숫자 PK)를 노출하지 않는다. */
-  publicId: string;
+  /**
+   * 찜/리뷰 API 호출에 쓰는 값. 백엔드 응답의 실제 JSON 키는 여전히 `publicId`다 —
+   * `api.ts`의 fetch 함수가 받는 시점에 `id`로 매핑해서 돌려준다.
+   */
+  id: string;
   name: string;
   eventPlace: string | null;
   address: string | null;

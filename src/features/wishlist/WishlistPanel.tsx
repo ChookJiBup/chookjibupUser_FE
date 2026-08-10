@@ -46,8 +46,8 @@ export function WishlistPanel() {
     <div className="flex flex-col">
       {data.items.map((festival) => (
         <Link
-          key={festival.festivalPublicId}
-          href={`/festivals/${festival.festivalPublicId}`}
+          key={festival.id}
+          href={`/festivals/${festival.id}`}
           className="flex flex-col gap-1 border-b border-zinc-200 px-4 py-4"
         >
           <div className="flex items-center justify-between gap-2">

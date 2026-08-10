@@ -33,7 +33,7 @@ function WishlistHeart({ festival }: { festival: UserFestivalResponse }) {
     if (!isLoggedIn || pending) return;
     setPending(true);
     try {
-      await toggleWishlist(festival.publicId);
+      await toggleWishlist(festival.id);
       await queryClient.invalidateQueries({ queryKey: ["festivals"] });
     } finally {
       setPending(false);
@@ -58,7 +58,7 @@ function WishlistHeart({ festival }: { festival: UserFestivalResponse }) {
 function FestivalCard({ festival }: { festival: UserFestivalResponse }) {
   return (
     <Link
-      href={`/festivals/${festival.publicId}`}
+      href={`/festivals/${festival.id}`}
       className="flex items-start justify-between gap-3 border-b border-zinc-200 px-4 py-4"
     >
       <div className="flex flex-col gap-1">
@@ -108,7 +108,7 @@ export function FestivalListPanel() {
   return (
     <div className="flex flex-col">
       {data.items.map((festival) => (
-        <FestivalCard key={festival.publicId} festival={festival} />
+        <FestivalCard key={festival.id} festival={festival} />
       ))}
       <div className="flex items-center justify-center gap-4 p-4">
         <button
