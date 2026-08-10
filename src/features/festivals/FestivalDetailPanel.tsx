@@ -29,7 +29,7 @@ const CONGESTION_LABEL: Record<BoothCongestionLevel, string> = {
   comfortable: "여유",
 };
 
-export function FestivalDetailPanel({ festivalId }: { festivalId: number }) {
+export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
   const queryClient = useQueryClient();
   const hasHydrated = useUserAuthHasHydrated();
   const session = useUserAuthStore((state) => state.session);

@@ -6,5 +6,5 @@ export default async function FestivalDetailPage({
   params: Promise<{ festivalId: string }>;
 }) {
   const { festivalId } = await params;
-  return <FestivalDetailPanel festivalId={Number(festivalId)} />;
+  return <FestivalDetailPanel festivalId={festivalId} />;
 }
