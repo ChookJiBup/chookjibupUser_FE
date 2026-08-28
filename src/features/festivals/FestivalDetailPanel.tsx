@@ -10,6 +10,7 @@ import {
 } from "@/lib/api/httpError";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
 import { toggleWishlist } from "@/features/wishlist/api";
+import { ReviewsPanel } from "@/features/reviews/ReviewsPanel";
 import { getFestivalDetail } from "./api";
 import type {
   BoothCongestionLevel,
@@ -154,6 +155,8 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
       ) : null}
 
       {festival.roadmap ? <RoadmapView roadmap={festival.roadmap} /> : null}
+
+      <ReviewsPanel festivalId={festivalId} />
     </div>
   );
 }
