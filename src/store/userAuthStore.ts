@@ -11,7 +11,6 @@ interface UserAuthState {
   sessionChecked: boolean;
   setSession: (session: UserSession) => void;
   clearSession: () => void;
-  markSessionChecked: () => void;
 }
 
 // Access Token은 HttpOnly 쿠키로만 관리하고 브라우저 저장소에 보관하지 않는다.
@@ -20,7 +19,6 @@ export const useUserAuthStore = create<UserAuthState>((set) => ({
   sessionChecked: false,
   setSession: (session) => set({ session, sessionChecked: true }),
   clearSession: () => set({ session: null, sessionChecked: true }),
-  markSessionChecked: () => set({ sessionChecked: true }),
 }));
 
 /**
