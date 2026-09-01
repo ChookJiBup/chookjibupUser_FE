@@ -31,9 +31,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={`${pretendard.variable} ${roboto.variable} h-full antialiased`}>
-      <body className="min-h-full bg-gray-100">
+      <body className="min-h-dvh bg-zinc-100">
         <Providers>
-          <div className="mx-auto flex min-h-full w-full max-w-md flex-col bg-white">
+          <div className="mobile-app-shell mx-auto flex flex-col bg-white shadow-sm">
             <Header />
             <main className="flex flex-1 flex-col">{children}</main>
           </div>

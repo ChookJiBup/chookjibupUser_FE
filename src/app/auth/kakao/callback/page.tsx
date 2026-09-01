@@ -18,13 +18,7 @@ function KakaoCallbackInner() {
     mutationFn: (authCode: string) =>
       kakaoLogin({ code: authCode, redirectUri: KAKAO_REDIRECT_URI }),
     onSuccess: (result) => {
-      setSession(
-        result.accessToken,
-        result.accessTokenExpiresInSeconds,
-        result.nickname,
-        result.email,
-        result.profileImageUrl,
-      );
+      setSession(result);
       router.replace("/");
     },
   });

@@ -42,3 +42,12 @@ export async function emailLogin(request: EmailLoginRequest): Promise<UserLoginR
   );
   return data.data;
 }
+
+export async function getCurrentUser(): Promise<UserLoginResponse> {
+  const { data } = await userApiClient.get<ApiResponse<UserLoginResponse>>("/auth/me");
+  return data.data;
+}
+
+export async function logout(): Promise<void> {
+  await userApiClient.post("/auth/logout");
+}

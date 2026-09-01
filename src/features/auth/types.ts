@@ -4,8 +4,7 @@ export interface KakaoLoginRequest {
 }
 
 export interface UserLoginResponse {
-  accessToken: string;
-  accessTokenExpiresInSeconds: number;
+  expiresIn: number;
   newUser: boolean;
   nickname: string;
   email: string | null;

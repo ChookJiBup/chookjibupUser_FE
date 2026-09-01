@@ -5,14 +5,7 @@ import { useUserAuthStore } from "@/store/userAuthStore";
 // baseURL은 공통 루트로 두고, 각 API 함수가 나머지 경로를 명시한다.
 export const userApiClient = axios.create({
   baseURL: "/api",
-});
-
-userApiClient.interceptors.request.use((config) => {
-  const session = useUserAuthStore.getState().session;
-  if (session) {
-    config.headers.Authorization = `Bearer ${session.accessToken}`;
-  }
-  return config;
+  withCredentials: true,
 });
 
 userApiClient.interceptors.response.use(

@@ -1,11 +1,6 @@
-import { useSyncExternalStore } from "react";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 
-interface UserSession {
-  accessToken: string;
-  /** 토큰 만료 시각 (epoch ms) */
-  expiresAt: number;
+export interface UserSession {
   nickname: string;
   email: string | null;
   profileImageUrl: string | null;
@@ -13,50 +8,24 @@ interface UserSession {
 
 interface UserAuthState {
   session: UserSession | null;
-  setSession: (
-    accessToken: string,
-    expiresInSeconds: number,
-    nickname: string,
-    email: string | null,
-    profileImageUrl: string | null,
-  ) => void;
+  sessionChecked: boolean;
+  setSession: (session: UserSession) => void;
   clearSession: () => void;
-  isSessionValid: () => boolean;
+  markSessionChecked: () => void;
 }
 
-export const useUserAuthStore = create<UserAuthState>()(
-  persist(
-    (set, get) => ({
-      session: null,
-      setSession: (accessToken, expiresInSeconds, nickname, email, profileImageUrl) =>
-        set({
-          session: {
-            accessToken,
-            expiresAt: Date.now() + expiresInSeconds * 1000,
-            nickname,
-            email,
-            profileImageUrl,
-          },
-        }),
-      clearSession: () => set({ session: null }),
-      isSessionValid: () => {
-        const { session } = get();
-        return session !== null && session.expiresAt > Date.now();
-      },
-    }),
-    { name: "chookjibup-user-auth" },
-  ),
-);
+// Access Token은 HttpOnly 쿠키로만 관리하고 브라우저 저장소에 보관하지 않는다.
+export const useUserAuthStore = create<UserAuthState>((set) => ({
+  session: null,
+  sessionChecked: false,
+  setSession: (session) => set({ session, sessionChecked: true }),
+  clearSession: () => set({ session: null, sessionChecked: true }),
+  markSessionChecked: () => set({ sessionChecked: true }),
+}));
 
 /**
- * localStorage에서 세션을 복원하는 zustand persist rehydration이 끝났는지 추적한다.
- * 이게 끝나기 전에 isSessionValid를 판단하면 로그인된 사용자도 새로고침 시
- * 순간적으로 미인증 상태로 보일 수 있다.
+ * HttpOnly 쿠키로 /auth/me 확인을 끝냈는지 나타낸다.
  */
 export function useUserAuthHasHydrated(): boolean {
-  return useSyncExternalStore(
-    (onStoreChange) => useUserAuthStore.persist.onFinishHydration(onStoreChange),
-    () => useUserAuthStore.persist.hasHydrated(),
-    () => false,
-  );
+  return useUserAuthStore((state) => state.sessionChecked);
 }
