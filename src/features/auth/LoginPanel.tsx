@@ -74,7 +74,7 @@ export function LoginPanel() {
               size="lg"
               onClick={() => window.location.assign(getKakaoAuthorizeUrl())}
               icon={<KakaoIcon />}
-              className="body-regular-bold flex h-[51px] w-full items-center justify-center gap-[6px] rounded-lg bg-[#FEE500] text-[#191919] transition-opacity hover:opacity-90"
+              className="body-regular-bold flex h-[51px] w-full items-center justify-center gap-[6px] rounded-lg bg-[#FEE500] text-[#191919] transition-none hover:bg-[#FEE500]"
             >
               카카오로 3초 만에 시작하기
             </Button>
