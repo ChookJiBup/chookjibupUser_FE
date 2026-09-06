@@ -1,7 +1,6 @@
+// src/features/map/MapPanel.tsx (전체)
 "use client";
 
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,10 +10,11 @@ import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore"
 import { StatusBadge, formatDateRange } from "@/features/festivals/FestivalCard";
 import { getFestivalCongestion, getFestivals } from "@/features/festivals/api";
 import type { FestivalProgressStatus, UserFestivalResponse } from "@/features/festivals/types";
+import { type KakaoMapInstance, loadKakaoMapsSdk } from "@/lib/map/kakaoMaps";
 
 // 대한민국 대략 중심 좌표. 좌표가 있는 축제가 없을 때 기본 화면 위치로 쓴다.
-const DEFAULT_CENTER: [number, number] = [36.5, 127.8];
-const DEFAULT_ZOOM = 7;
+const DEFAULT_CENTER = { lat: 36.5, lng: 127.8 };
+const DEFAULT_LEVEL = 13; // 카카오맵은 레벨이 클수록 축소(줌아웃)된다.
 
 type MapFilterTab = "ALL" | Exclude<FestivalProgressStatus, "COMPLETED">;
 
@@ -41,25 +41,25 @@ function markerColor(status: FestivalProgressStatus | null) {
   return "#9f9fa9"; // zinc-400
 }
 
-function buildDivIcon(festival: UserFestivalResponse) {
+function buildMarkerElement(festival: UserFestivalResponse): HTMLDivElement {
   const color = markerColor(festival.progressStatus);
-  const badge =
-    festival.progressStatus === "UPCOMING"
-      ? `<span style="position:absolute;top:-8px;right:-8px;background:#fff;border:1px solid ${color};border-radius:9999px;font-size:9px;padding:0 4px;color:${color};">D-${daysUntil(
-          festival.startDate,
-        )}</span>`
-      : "";
-  return L.divIcon({
-    className: "",
-    html: `<div style="position:relative;width:16px;height:16px;border-radius:9999px;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);">${badge}</div>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-  });
+  const wrapper = document.createElement("div");
+  wrapper.style.cssText = "position:relative;width:16px;height:16px;cursor:pointer;";
+  wrapper.innerHTML = `<div style="width:16px;height:16px;border-radius:9999px;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>`;
+
+  if (festival.progressStatus === "UPCOMING") {
+    const badge = document.createElement("span");
+    badge.style.cssText = `position:absolute;top:-8px;right:-8px;background:#fff;border:1px solid ${color};border-radius:9999px;font-size:9px;padding:0 4px;color:${color};white-space:nowrap;`;
+    badge.textContent = `D-${daysUntil(festival.startDate)}`;
+    wrapper.appendChild(badge);
+  }
+
+  return wrapper;
 }
 
 /**
- * HOME02(축제지도). Kakao Maps 대신 API 키가 필요 없는 Leaflet+OpenStreetMap을 썼다 —
- * 나중에 카카오 지도로 바꾸고 싶으면 이 컴포넌트만 교체하면 된다(다른 곳에서 안 씀).
+ * HOME02(축제지도). 카카오맵 JS SDK를 쓴다 — NEXT_PUBLIC_KAKAO_MAP_KEY 환경변수가
+ * 필요하다(카카오 개발자 콘솔 > 내 애플리케이션 > 플랫폼 키 > JavaScript 키).
  *
  * [알려진 제약]
  * - 혼잡도에 따른 마커 색상 구분은 없다 — 관리자 백엔드에 실시간 혼잡도 데이터 자체가 없다.
@@ -69,13 +69,14 @@ function buildDivIcon(festival: UserFestivalResponse) {
 export function MapPanel() {
   const [tab, setTab] = useState<MapFilterTab>("ALL");
   const [selected, setSelected] = useState<UserFestivalResponse | null>(null);
+  const [sdkError, setSdkError] = useState<string | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const mapRef = useRef<KakaoMapInstance | null>(null);
+  const overlaysRef = useRef<{ setMap: (map: KakaoMapInstance | null) => void }[]>([]);
 
   const query = useQuery({
     queryKey: ["festivals-map", tab],
-    // 지도는 페이지네이션 없이 한 번에 다 찍는다 — size를 넉넉히 잡는다.
+    // 지도는 페이지네이션 없이 한 번에 다 찍는다 — 백엔드 MAX_SIZE(100)에 맞춰 최대치로 요청한다.
     queryFn: () => getFestivals({ page: 0, size: 100, status: tab === "ALL" ? undefined : tab }),
   });
 
@@ -85,35 +86,51 @@ export function MapPanel() {
     [query.data],
   );
 
-  // 지도는 최초 1회만 만들고, 이후엔 마커만 갈아끼운다 (매 렌더마다 지도를 새로 만들면
-  // 확대/축소 상태가 계속 초기화된다).
+  // 지도는 최초 1회만 만들고, 이후엔 마커(오버레이)만 갈아끼운다 — 매 렌더마다 지도를
+  // 새로 만들면 확대/축소 상태가 계속 초기화된다.
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
-    const map = L.map(mapContainerRef.current).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors",
-      maxZoom: 19,
-    }).addTo(map);
-    markersLayerRef.current = L.layerGroup().addTo(map);
-    mapRef.current = map;
+    let cancelled = false;
+
+    loadKakaoMapsSdk()
+      .then(() => {
+        if (cancelled || !mapContainerRef.current || mapRef.current) return;
+        const center = new window.kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
+        mapRef.current = new window.kakao.maps.Map(mapContainerRef.current, {
+          center,
+          level: DEFAULT_LEVEL,
+        });
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setSdkError(err.message);
+      });
 
     return () => {
-      map.remove();
-      mapRef.current = null;
+      cancelled = true;
     };
   }, []);
 
   useEffect(() => {
-    const layer = markersLayerRef.current;
-    if (!layer) return;
-    layer.clearLayers();
+    const map = mapRef.current;
+    if (!map) return;
+
+    overlaysRef.current.forEach((overlay) => overlay.setMap(null));
+    overlaysRef.current = [];
 
     festivalsWithCoords.forEach((festival) => {
-      const marker = L.marker([festival.latitude as number, festival.longitude as number], {
-        icon: buildDivIcon(festival),
+      const position = new window.kakao.maps.LatLng(
+        festival.latitude as number,
+        festival.longitude as number,
+      );
+      const element = buildMarkerElement(festival);
+      element.addEventListener("click", () => setSelected(festival));
+
+      const overlay = new window.kakao.maps.CustomOverlay({
+        position,
+        content: element,
+        yAnchor: 0.5,
       });
-      marker.on("click", () => setSelected(festival));
-      marker.addTo(layer);
+      overlay.setMap(map);
+      overlaysRef.current.push(overlay);
     });
   }, [festivalsWithCoords]);
 
@@ -139,6 +156,7 @@ export function MapPanel() {
       {query.isError ? (
         <p className="body-small p-4 text-error">{getApiErrorMessage(query.error)}</p>
       ) : null}
+      {sdkError ? <p className="body-small p-4 text-error">{sdkError}</p> : null}
 
       <div ref={mapContainerRef} className="min-h-0 flex-1" />
 
