@@ -63,7 +63,9 @@ export async function getFestivalDetail(festivalId: string): Promise<UserFestiva
  * 축제 현재 혼잡도를 조회한다. 관리자/스태프가 갱신한 값을 그대로 읽는다 —
  * 아직 한 번도 갱신 안 된 부스는 congestionLevel/waitMinutes가 null로 온다.
  */
-export async function getFestivalCongestion(festivalId: string): Promise<FestivalCongestionResponse> {
+export async function getFestivalCongestion(
+  festivalId: string,
+): Promise<FestivalCongestionResponse> {
   const { data } = await userApiClient.get<ApiResponse<FestivalCongestionResponse>>(
     `/festivals/${festivalId}/congestion`,
   );

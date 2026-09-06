@@ -92,7 +92,11 @@ export function WishlistHeart({ festival }: { festival: UserFestivalResponse }) 
       aria-label={festival.wishlisted ? "찜 취소" : "찜하기"}
       className="shrink-0 text-point-600"
     >
-      {festival.wishlisted ? <HeartFilledIcon className="size-5" /> : <HeartIcon className="size-5" />}
+      {festival.wishlisted ? (
+        <HeartFilledIcon className="size-5" />
+      ) : (
+        <HeartIcon className="size-5" />
+      )}
     </button>
   );
 }

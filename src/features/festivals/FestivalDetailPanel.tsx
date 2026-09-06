@@ -371,7 +371,12 @@ function FestivalInfoTab({ festival }: { festival: UserFestivalDetailResponse })
 
         {festival.homepageUrl ? (
           <InfoRow icon={<Link2Icon className="size-4" />}>
-            <a href={festival.homepageUrl} target="_blank" rel="noreferrer" className="text-primary">
+            <a
+              href={festival.homepageUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary"
+            >
               홈페이지 바로가기
             </a>
           </InfoRow>
@@ -379,9 +384,8 @@ function FestivalInfoTab({ festival }: { festival: UserFestivalDetailResponse })
 
         <div className="rounded-lg bg-zinc-50 p-3">
           <p className="body-caption text-zinc-500">
-            본 축제 정보는 문화체육관광부의 지역축제정보 API를 바탕으로 제공되었습니다. 현장
-            상황에 따라 진행 내용은 변동될 수 있으니, 방문 전 축제 문의처를 통해 반드시 확인
-            바랍니다.
+            본 축제 정보는 문화체육관광부의 지역축제정보 API를 바탕으로 제공되었습니다. 현장 상황에
+            따라 진행 내용은 변동될 수 있으니, 방문 전 축제 문의처를 통해 반드시 확인 바랍니다.
           </p>
         </div>
       </div>
@@ -396,7 +400,11 @@ function FestivalInfoTab({ festival }: { festival: UserFestivalDetailResponse })
             <div className="flex items-center gap-2">
               <SewingPinIcon className="size-4 text-zinc-400" />
               <p className="body-small text-zinc-700">{address}</p>
-              <button type="button" onClick={() => copyToClipboard(address)} className="text-zinc-400">
+              <button
+                type="button"
+                onClick={() => copyToClipboard(address)}
+                className="text-zinc-400"
+              >
                 <ClipboardCopyIcon className="size-4" />
               </button>
             </div>

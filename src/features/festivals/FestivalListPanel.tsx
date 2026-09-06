@@ -117,9 +117,7 @@ export function FestivalListPanel() {
       ) : null}
 
       {tab === "WISHLIST" && !isLoggedIn ? (
-        <p className="body-regular p-4 text-zinc-500">
-          로그인하면 찜한 축제를 모아볼 수 있어요.
-        </p>
+        <p className="body-regular p-4 text-zinc-500">로그인하면 찜한 축제를 모아볼 수 있어요.</p>
       ) : (
         <FestivalListBody
           isLoading={activeQuery.isLoading}

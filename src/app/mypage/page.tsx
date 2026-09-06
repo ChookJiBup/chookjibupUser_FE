@@ -36,11 +36,7 @@ function MyPageContent() {
       <div className="flex items-center gap-3 rounded-lg border border-zinc-200 p-4">
         {session.profileImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={session.profileImageUrl}
-            alt=""
-            className="size-12 rounded-full object-cover"
-          />
+          <img src={session.profileImageUrl} alt="" className="size-12 rounded-full object-cover" />
         ) : (
           <div className="size-12 rounded-full bg-zinc-100" />
         )}

@@ -19,7 +19,11 @@ export function StarRating({
   const readOnly = !onChange;
 
   return (
-    <div className="flex items-center gap-1" role={readOnly ? undefined : "radiogroup"} aria-label="별점">
+    <div
+      className="flex items-center gap-1"
+      role={readOnly ? undefined : "radiogroup"}
+      aria-label="별점"
+    >
       {stars.map((star) => {
         const filled = star <= value;
         const Icon = filled ? StarFilledIcon : StarIcon;

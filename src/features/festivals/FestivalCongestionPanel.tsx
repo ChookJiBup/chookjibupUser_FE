@@ -47,7 +47,8 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
         <div className="flex flex-col gap-3 p-4">
           {query.data.averageWaitMinutes !== null ? (
             <p className="body-small text-zinc-500">
-              평균 대기 {query.data.averageWaitMinutes}분 · 혼잡한 부스 {query.data.activeQueueCount ?? 0}곳
+              평균 대기 {query.data.averageWaitMinutes}분 · 혼잡한 부스{" "}
+              {query.data.activeQueueCount ?? 0}곳
             </p>
           ) : null}
 

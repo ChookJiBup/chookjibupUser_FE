@@ -104,7 +104,9 @@ export function ReviewWritePanel({ festivalId }: { festivalId: string }) {
           리뷰 등록
         </button>
         {createMutation.isSuccess ? (
-          <p className="body-caption text-center text-secondary-600">리뷰가 등록됐어요. 감사합니다!</p>
+          <p className="body-caption text-center text-secondary-600">
+            리뷰가 등록됐어요. 감사합니다!
+          </p>
         ) : null}
         {createMutation.isError ? (
           <p className="body-caption text-center text-error">
