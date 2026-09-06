@@ -1,10 +1,8 @@
 "use client";
 
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { loadKakaoMapsSdk } from "@/lib/map/kakaoMaps";
 
-/** 축제 위치 하나만 찍는 작은 지도. HOME02(MapPanel)와 별개로 가볍게 쓴다. */
 export function LocationMiniMap({
   latitude,
   longitude,
@@ -15,28 +13,46 @@ export function LocationMiniMap({
   height?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<L.Map | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
-    const map = L.map(containerRef.current, {
-      zoomControl: false,
-      dragging: false,
-      scrollWheelZoom: false,
-      doubleClickZoom: false,
-    }).setView([latitude, longitude], 15);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap contributors",
-      maxZoom: 19,
-    }).addTo(map);
-    L.marker([latitude, longitude]).addTo(map);
-    mapRef.current = map;
+    let cancelled = false;
+
+    loadKakaoMapsSdk()
+      .then(() => {
+        if (cancelled || !containerRef.current) return;
+        const center = new window.kakao.maps.LatLng(latitude, longitude);
+        const map = new window.kakao.maps.Map(containerRef.current, { center, level: 4 });
+
+        const marker = document.createElement("div");
+        marker.style.cssText =
+          "width:16px;height:16px;border-radius:9999px;background:#fd7e14;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);";
+        const overlay = new window.kakao.maps.CustomOverlay({
+          position: center,
+          content: marker,
+          yAnchor: 0.5,
+        });
+        overlay.setMap(map);
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setError(err.message);
+      });
 
     return () => {
-      map.remove();
-      mapRef.current = null;
+      cancelled = true;
     };
   }, [latitude, longitude]);
+
+  if (error) {
+    return (
+      <div
+        className="flex w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50"
+        style={{ height }}
+      >
+        <p className="body-caption px-4 text-center text-zinc-400">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div
