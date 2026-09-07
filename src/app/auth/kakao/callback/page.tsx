@@ -1,10 +1,11 @@
+// src/app/auth/kakao/callback/page.tsx (전체)
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { kakaoLogin } from "@/features/auth/api";
-import { KAKAO_REDIRECT_URI } from "@/features/auth/kakao";
+import { getKakaoRedirectUri } from "@/features/auth/kakao";
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { useUserAuthStore } from "@/store/userAuthStore";
 
@@ -18,7 +19,7 @@ function KakaoCallbackInner() {
 
   const loginMutation = useMutation({
     mutationFn: (authCode: string) =>
-      kakaoLogin({ code: authCode, redirectUri: KAKAO_REDIRECT_URI }),
+      kakaoLogin({ code: authCode, redirectUri: getKakaoRedirectUri() }),
     onSuccess: (result) => {
       setSession(result);
       router.replace("/");
