@@ -24,7 +24,9 @@ export const STATUS_BADGE_CLASS: Record<FestivalProgressStatus, string> = {
 export function StatusBadge({ status }: { status: FestivalProgressStatus | null }) {
   if (!status) return null;
   return (
-    <span className={`body-caption rounded-full px-2 py-0.5 ${STATUS_BADGE_CLASS[status]}`}>
+    <span
+      className={`body-caption shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 ${STATUS_BADGE_CLASS[status]}`}
+    >
       {STATUS_LABEL[status]}
     </span>
   );
