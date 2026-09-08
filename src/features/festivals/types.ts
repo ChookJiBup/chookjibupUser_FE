@@ -72,6 +72,38 @@ export interface RoadmapZoneResponse {
   booths: RoadmapNodeResponse[];
 }
 
+/** WGS84 좌표 한 점. */
+export interface RoadmapLatLng {
+  lat: number;
+  lng: number;
+}
+
+/**
+ * 관리자가 카카오맵에 맞춰 둔 팜플렛 오버레이.
+ *
+ * 네 귀퉁이는 서버가 앵커(중심·폭·회전)에서 계산해 내려주므로 프론트가 좌표 변환을
+ * 다시 하지 않는다. 남서/북동 bounds로 바꿔 그리면 회전이 사라지니 그러면 안 된다.
+ */
+export interface RoadmapOverlayResponse {
+  imageUrl: string;
+  imageWidth: number;
+  imageHeight: number;
+  topLeft: RoadmapLatLng;
+  topRight: RoadmapLatLng;
+  bottomRight: RoadmapLatLng;
+  bottomLeft: RoadmapLatLng;
+  /** 0~1. */
+  opacity: number;
+  /** true면 팜플렛을 부지 경계 안쪽으로만 잘라 보여준다. */
+  clipToBoundary: boolean;
+}
+
+/** 부지 경계와 팜플렛. 관리자가 한쪽만 맞춰 뒀을 수 있어 각각 null일 수 있다. */
+export interface RoadmapPresentationResponse {
+  boundary: RoadmapLatLng[] | null;
+  overlay: RoadmapOverlayResponse | null;
+}
+
 /**
  * 축제 배치도(로드맵) 응답. 관리자가 로드맵을 발행(PUBLISHED)해둔 경우에만 값이 오고,
  * 아직 작업 중이거나 등록 안 됐으면 상세 응답의 roadmap 자체가 null이다.
@@ -86,6 +118,8 @@ export interface RoadmapResponse {
   zones: RoadmapZoneResponse[];
   /** 부스가 아닌 것들(화장실/입구/무대 등 — 구역에 안 속함). */
   otherNodes: RoadmapNodeResponse[];
+  /** 관리자가 카카오맵에 맞춰 둔 부지 경계·팜플렛. 아직 안 맞췄으면 null. */
+  presentation: RoadmapPresentationResponse | null;
 }
 
 export interface UserFestivalDetailResponse {
