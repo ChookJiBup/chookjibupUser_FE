@@ -25,6 +25,8 @@ import { ReviewsPanel } from "@/features/reviews/ReviewsPanel";
 import { LocationMiniMap } from "@/components/ui/LocationMiniMap";
 import { getFestivalCongestion, getFestivalDetail } from "./api";
 import { FestivalStats, FestivalThumbnail, StatusBadge } from "./FestivalCard";
+import { readBoundary, readOverlay } from "./mapPresentation";
+import { RoadmapMapView } from "./RoadmapMapView";
 import type {
   BoothCongestionLevel,
   BoothCongestionResponse,
@@ -431,6 +433,9 @@ function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.Re
  * "부스지도" 탭. 부스는 구역(zone)별로 묶어서 보여주고, 화장실/입구/무대 등은
  * 별도 목록으로 보여준다. 혼잡도는 여기가 아니라 상세 페이지 헤더의
  * "실시간 축제현황"에서 보여준다(진행중일 때만).
+ *
+ * 관리자가 카카오맵 위에 부지 경계나 팜플렛을 맞춰 뒀으면(presentation) 그 지도를
+ * 그대로 보여주고, 아직 안 맞췄으면 지금까지처럼 배치도 이미지만 보여준다.
  */
 function RoadmapTab({ roadmap }: { roadmap: RoadmapResponse | null }) {
   if (!roadmap) {
@@ -438,10 +443,14 @@ function RoadmapTab({ roadmap }: { roadmap: RoadmapResponse | null }) {
   }
 
   const hasBooths = roadmap.zones.some((zone) => zone.booths.length > 0);
+  const hasMapPresentation =
+    readBoundary(roadmap.presentation) !== null || readOverlay(roadmap.presentation) !== null;
 
   return (
     <div className="flex flex-col gap-3 py-4">
-      {roadmap.mapImageUrl ? (
+      {hasMapPresentation ? (
+        <RoadmapMapView roadmap={roadmap} />
+      ) : roadmap.mapImageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={roadmap.mapImageUrl}
