@@ -35,3 +35,16 @@ export async function getMyWishlist(page = 0, size = 20): Promise<MyWishlistPage
     items: data.data.items.map(toWishlistResponse),
   };
 }
+
+/** 찜 목록 편집 모드에서 체크박스로 여러 개 선택해 한 번에 삭제할 때 쓴다. */
+export async function deleteWishlists(festivalIds: string[]): Promise<void> {
+  await userApiClient.delete("/wishlists", {
+    params: { festivalPublicIds: festivalIds },
+    // axios 기본 직렬화는 배열을 festivalPublicIds[]=a&festivalPublicIds[]=b 식으로 만드는데,
+    // 백엔드(@RequestParam List<UUID>)는 festivalPublicIds=a&festivalPublicIds=b 형태를
+    // 기대한다 — paramsSerializer로 대괄호 없이 반복 키로 직렬화한다.
+    paramsSerializer: {
+      indexes: null,
+    },
+  });
+}

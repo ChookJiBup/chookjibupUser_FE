@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeftIcon } from "@radix-ui/react-icons";
 import { UserAuthGuard } from "@/components/auth/UserAuthGuard";
 import { WishlistPanel } from "@/features/wishlist/WishlistPanel";
 
@@ -15,17 +14,7 @@ export default function WishlistPage() {
     </div>
   );
 
-  return (
-    <UserAuthGuard fallback={loginFallback}>
-      <div className="flex flex-col">
-        <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-3">
-          <Link href="/" aria-label="뒤로가기">
-            <ChevronLeftIcon className="size-5 text-zinc-700" />
-          </Link>
-          <h1 className="body-large-bold text-zinc-950">내가 저장한 축제</h1>
-        </div>
-        <WishlistPanel />
-      </div>
-    </UserAuthGuard>
-  );
+  // 헤더(뒤로가기/편집모드 X버튼 + 수정하기/삭제하기)는 WishlistPanel이 편집 모드
+  // 상태에 따라 직접 그린다 — 여기서는 로그인 여부만 확인한다.
+  return <UserAuthGuard fallback={loginFallback}>{<WishlistPanel />}</UserAuthGuard>;
 }
