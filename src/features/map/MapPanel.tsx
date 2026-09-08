@@ -30,6 +30,9 @@ const TAB_LABEL: Record<MapFilterTab, string> = {
 // "내가 저장한 축제"(위시리스트) 탭은 뺐다 — /api/wishlists/me 응답엔 좌표가 없다.
 const TABS: MapFilterTab[] = ["ALL", "ONGOING", "UPCOMING"];
 
+/** 전체 탭에서 지도에 찍을 상태들. 종료된 축제는 지도에 올리지 않는다. */
+const MAP_ACTIVE_STATUSES: Exclude<FestivalProgressStatus, "COMPLETED">[] = ["ONGOING", "UPCOMING"];
+
 function daysUntil(startDate: string | null): number | null {
   if (!startDate) return null;
   const diffMs = new Date(startDate).getTime() - new Date().setHours(0, 0, 0, 0);
@@ -84,7 +87,15 @@ export function MapPanel() {
   const query = useQuery({
     queryKey: ["festivals-map", tab],
     // 지도는 페이지네이션 없이 한 번에 다 찍는다 — 백엔드 MAX_SIZE(100)에 맞춰 최대치로 요청한다.
-    queryFn: () => getFestivals({ page: 0, size: 100, status: tab === "ALL" ? undefined : tab }),
+    // status를 안 주면 종료된 축제까지 시작일 오름차순으로 섞여 와서 첫 100개가 전부 옛날
+    // 축제가 된다. 백엔드 status는 값을 하나만 받으므로 전체 탭은 두 상태를 따로 부른다.
+    queryFn: async () => {
+      const statuses = tab === "ALL" ? MAP_ACTIVE_STATUSES : [tab];
+      const pages = await Promise.all(
+        statuses.map((status) => getFestivals({ page: 0, size: 100, status })),
+      );
+      return pages.flatMap((page) => page.items);
+    },
   });
 
   // "찜한 것만 보기"는 별도 API를 새로 안 만들고, 이미 받아온 목록(각 항목에 wishlisted
@@ -92,7 +103,7 @@ export function MapPanel() {
   // 클라이언트에서 걸러도 무리 없다.
   const festivalsWithCoords = useMemo(
     () =>
-      (query.data?.items ?? [])
+      (query.data ?? [])
         .filter((item) => item.latitude !== null && item.longitude !== null)
         .filter((item) => !wishlistOnly || item.wishlisted),
     [query.data, wishlistOnly],

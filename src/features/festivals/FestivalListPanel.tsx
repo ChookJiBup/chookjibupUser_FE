@@ -23,6 +23,18 @@ const TABS: { value: FilterTab; label: string }[] = [
   { value: "WISHLIST", label: "내가 저장한 축제" },
 ];
 
+/**
+ * 홈에 노출할 축제 상태. 백엔드에는 "종료 제외" 필터가 없고 status 파라미터도 값을 하나만
+ * 받으므로, 전체 탭에서는 두 상태를 각각 조회해 이어 붙인다. 상태 필터 없이 받아서
+ * 클라이언트에서 종료 축제를 걸러내면, 목록이 시작일 오름차순이라 옛날 축제 수백 페이지를
+ * 전부 훑고 나서야 첫 화면이 그려진다.
+ */
+const ACTIVE_STATUSES: Exclude<FestivalProgressStatus, "COMPLETED">[] = ["ONGOING", "UPCOMING"];
+const FEED_PAGE_SIZE = 6;
+const RANKING_SIZE = 8;
+/** 한 번의 조회에서 이어 읽을 최대 페이지 수. 요청이 무한정 늘어나지 않게 막는 안전장치다. */
+const MAX_PAGES_PER_FETCH = 4;
+
 export function FestivalListPanel() {
   const [resetVersion, setResetVersion] = useState(0);
   const [tab, setTab] = useState<FilterTab>("ALL");
@@ -44,40 +56,50 @@ export function FestivalListPanel() {
   const hasHydrated = useUserAuthHasHydrated();
   const session = useUserAuthStore((state) => state.session);
   const isLoggedIn = hasHydrated && session !== null;
-  const filters = {
-    status: tab === "ALL" || tab === "WISHLIST" ? undefined : tab,
-    region: region === "ALL" ? undefined : region,
-  };
+  const regionFilter = region === "ALL" ? undefined : region;
+  const statuses = tab === "ONGOING" || tab === "UPCOMING" ? [tab] : ACTIVE_STATUSES;
   const ranking = useQuery({
     queryKey: ["festivals", "ranking-active", tab, region, sort, isLoggedIn],
-    queryFn: () =>
-      loadActiveFestivals((page) => getFestivals({ ...filters, sort, page, size: 8 }), 0, 8),
+    queryFn: async () => {
+      // 상태별 1페이지씩만 받아 합친다. 전체 상위 8개는 각 상태의 상위 8개 안에 반드시 들어 있다.
+      const pages = await Promise.all(
+        statuses.map((status) =>
+          getFestivals({ region: regionFilter, status, sort, page: 0, size: RANKING_SIZE }),
+        ),
+      );
+      const countOf = (festival: UserFestivalResponse) =>
+        sort === "REVIEW_COUNT" ? festival.reviewCount : festival.wishlistCount;
+      return pages
+        .flatMap((page) => page.items)
+        .sort((a, b) => countOf(b) - countOf(a))
+        .slice(0, RANKING_SIZE);
+    },
     enabled: tab !== "WISHLIST",
   });
   const feed = useInfiniteQuery({
     queryKey: ["festivals", "home-feed-active", tab, region, isLoggedIn],
-    initialPageParam: 0,
+    initialPageParam: { streamIndex: 0, page: 0 } as FeedCursor,
     queryFn: ({ pageParam }) =>
-      loadActiveFestivals(
-        async (page) => {
-          if (tab === "WISHLIST") {
-            const result = await getMyWishlist(page, 6);
-            return { ...result, items: result.items.map(toFestivalResponseFromWishlist) };
-          }
-          return getFestivals({ ...filters, page, size: 6 });
-        },
+      loadFeedPage(
+        tab === "WISHLIST"
+          ? [
+              async (page) => {
+                const result = await getMyWishlist(page, FEED_PAGE_SIZE);
+                return { ...result, items: result.items.map(toFestivalResponseFromWishlist) };
+              },
+            ]
+          : statuses.map(
+              (status) => (page: number) =>
+                getFestivals({ region: regionFilter, status, page, size: FEED_PAGE_SIZE }),
+            ),
         pageParam,
-        6,
+        FEED_PAGE_SIZE,
       ),
-    getNextPageParam: (lastPage) => lastPage.nextPage,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: tab !== "WISHLIST" || isLoggedIn,
   });
-  const rankedItems = (ranking.data?.items ?? [])
-    .filter((item) => item.progressStatus !== "COMPLETED")
-    .slice(0, 8);
-  const cards = (feed.data?.pages.flatMap((page) => page.items) ?? []).filter(
-    (item) => item.progressStatus !== "COMPLETED",
-  );
+  const rankedItems = ranking.data ?? [];
+  const cards = feed.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
     <div className="-mt-4 min-w-0">
@@ -214,7 +236,7 @@ export function FestivalListPanel() {
             loading={feed.isLoading}
             paused={feed.fetchStatus === "paused"}
             error={feed.error}
-            empty={feed.isSuccess && !cards.length}
+            empty={feed.isSuccess && !cards.length && !feed.hasNextPage}
           />
           <div className="grid grid-cols-2 gap-x-5">
             {cards.slice(0, visibleCount).map((festival) => (
@@ -265,23 +287,33 @@ export function FestivalListPanel() {
   );
 }
 
-// 완료된 항목을 제외한 뒤에도 노출 개수가 유지되도록 다음 서버 페이지를 이어 읽는다.
-async function loadActiveFestivals(
-  loadPage: (page: number) => Promise<Awaited<ReturnType<typeof getFestivals>>>,
-  startPage: number,
-  minimumCount: number,
-) {
+/** 목록을 읽어오는 곳 하나(진행중 / 진행예정 / 찜 목록)와 그 안에서의 페이지 번호. */
+type FeedCursor = { streamIndex: number; page: number };
+type FeedStream = (page: number) => Promise<{ items: UserFestivalResponse[]; totalPages: number }>;
+
+/**
+ * 목록 한 묶음을 읽는다. 앞 스트림을 다 읽으면 다음 스트림으로 넘어가고, 종료된 축제를 걸러낸
+ * 뒤 개수가 모자라면 다음 페이지를 이어 읽는다. 다만 한 번의 호출에서 MAX_PAGES_PER_FETCH
+ * 페이지까지만 본다 — 조건에 맞는 축제가 뒤쪽에 몰려 있어도 요청이 폭주하지 않게 하기 위해서다.
+ * 개수를 못 채우고 끊기면 남은 커서를 그대로 돌려주므로 "더보기"로 이어서 읽을 수 있다.
+ */
+async function loadFeedPage(streams: FeedStream[], cursor: FeedCursor, minimumCount: number) {
   const items: UserFestivalResponse[] = [];
-  let page = startPage;
-  while (true) {
-    const result = await loadPage(page);
+  let nextCursor: FeedCursor | undefined = cursor;
+  for (let fetched = 0; nextCursor && fetched < MAX_PAGES_PER_FETCH; fetched += 1) {
+    // 타입 표기를 붙여야 한다 — 아래에서 nextCursor를 다시 대입하기 때문에 TS가 순환 추론으로 본다.
+    const { streamIndex, page }: FeedCursor = nextCursor;
+    const result = await streams[streamIndex](page);
     items.push(...result.items.filter((item) => item.progressStatus !== "COMPLETED"));
-    const nextPage = result.page + 1 < result.totalPages ? result.page + 1 : undefined;
-    if (items.length >= minimumCount || nextPage === undefined) {
-      return { ...result, items, nextPage };
-    }
-    page = nextPage;
+    nextCursor =
+      page + 1 < result.totalPages
+        ? { streamIndex, page: page + 1 }
+        : streamIndex + 1 < streams.length
+          ? { streamIndex: streamIndex + 1, page: 0 }
+          : undefined;
+    if (items.length >= minimumCount) break;
   }
+  return { items, nextCursor };
 }
 
 function HomeThumbnail({
