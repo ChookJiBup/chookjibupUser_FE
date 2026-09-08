@@ -8,6 +8,7 @@ import { getMyWishlist } from "@/features/wishlist/api";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
 import { FestivalCard } from "./FestivalCard";
 import { getFestivals } from "./api";
+import { REGIONS } from "./regions";
 import type { FestivalProgressStatus, FestivalSort, UserFestivalResponse } from "./types";
 
 type FilterTab = "ALL" | FestivalProgressStatus | "WISHLIST";
@@ -20,11 +21,6 @@ const TAB_LABEL: Record<FilterTab, string> = {
   WISHLIST: "내가 저장한 축제",
 };
 
-/**
- * HOME01 필터 탭. Figma 설계서 기준으로는 지역별(전국+도 단위) 탭도 있는데,
- * 지금 백엔드엔 지역으로 필터링할 컬럼/API가 없어서 뺐다 — 관리자 백엔드에
- * 지역 정보가 정식으로 들어오면 그때 추가한다.
- */
 const TABS: FilterTab[] = ["ALL", "ONGOING", "UPCOMING", "WISHLIST"];
 
 type SortOption = "LATEST" | FestivalSort;
@@ -39,6 +35,7 @@ const SORT_OPTIONS: SortOption[] = ["LATEST", "WISHLIST_COUNT", "REVIEW_COUNT"];
 
 export function FestivalListPanel() {
   const [tab, setTab] = useState<FilterTab>("ALL");
+  const [region, setRegion] = useState<string>("ALL"); // "ALL" = 전국
   const [sort, setSort] = useState<SortOption>("LATEST");
   const [page, setPage] = useState(0);
   const hasHydrated = useUserAuthHasHydrated();
@@ -48,9 +45,11 @@ export function FestivalListPanel() {
   function handleTabChange(next: FilterTab) {
     setTab(next);
     setPage(0);
-    // 정렬(sort)은 상태 필터가 없는 "전체" 목록에서만 백엔드가 지원한다 —
-    // 다른 탭으로 옮기면 정렬을 초기화해서 잘못된 조합으로 요청이 안 나가게 한다.
-    if (next !== "ALL") setSort("LATEST");
+  }
+
+  function handleRegionChange(next: string) {
+    setRegion(next);
+    setPage(0);
   }
 
   function handleSortChange(next: SortOption) {
@@ -58,14 +57,17 @@ export function FestivalListPanel() {
     setPage(0);
   }
 
+  // 백엔드가 region/status/sort를 자유롭게 조합 지원한다 — 지역 골라놓고도
+  // 정렬(저장 많은순/리뷰 많은순)을 그대로 쓸 수 있다.
   const festivalsQuery = useQuery({
-    queryKey: ["festivals", tab, sort, page],
+    queryKey: ["festivals", tab, region, sort, page],
     queryFn: () =>
       getFestivals({
         page,
         size: 20,
         status: tab === "ALL" || tab === "WISHLIST" ? undefined : tab,
-        sort: tab === "ALL" && sort !== "LATEST" ? sort : undefined,
+        region: region !== "ALL" ? region : undefined,
+        sort: sort !== "LATEST" ? sort : undefined,
       }),
     enabled: tab !== "WISHLIST",
   });
@@ -80,24 +82,40 @@ export function FestivalListPanel() {
 
   return (
     <div className="flex flex-col">
-      <div className="flex gap-2 overflow-x-auto border-b border-zinc-100 px-4 py-3">
-        {TABS.map((value) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => handleTabChange(value)}
-            className={
-              tab === value
-                ? "body-small-bold shrink-0 rounded-full bg-point-600 px-3 py-1.5 text-white"
-                : "body-small shrink-0 rounded-full bg-zinc-100 px-3 py-1.5 text-zinc-700"
-            }
-          >
-            {TAB_LABEL[value]}
-          </button>
-        ))}
+      <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-3">
+        <select
+          value={region}
+          onChange={(event) => handleRegionChange(event.target.value)}
+          disabled={tab === "WISHLIST"}
+          className="body-small shrink-0 rounded-full bg-zinc-100 px-3 py-1.5 text-zinc-700 disabled:opacity-50"
+        >
+          <option value="ALL">전국</option>
+          {REGIONS.map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </select>
+
+        <div className="flex gap-2 overflow-x-auto">
+          {TABS.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => handleTabChange(value)}
+              className={
+                tab === value
+                  ? "body-small-bold shrink-0 rounded-full bg-point-600 px-3 py-1.5 text-white"
+                  : "body-small shrink-0 rounded-full bg-zinc-100 px-3 py-1.5 text-zinc-700"
+              }
+            >
+              {TAB_LABEL[value]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {tab === "ALL" ? (
+      {tab !== "WISHLIST" ? (
         <div className="flex gap-2 px-4 py-2">
           {SORT_OPTIONS.map((value) => (
             <button
@@ -148,7 +166,11 @@ export function FestivalListPanel() {
   );
 }
 
-/** 찜 목록 응답엔 progressStatus/좌표/전화번호 등이 없어서, 카드 표시에 필요한 만큼만 채워 넣는다. */
+/**
+ * 찜 목록 응답엔 progressStatus/좌표/전화번호/찜·리뷰 개수 등이 없어서, 카드 표시에
+ * 필요한 만큼만 채워 넣는다. wishlistCount/reviewCount는 이 탭에서만 0으로 나온다 —
+ * 필요해지면 백엔드 응답에 필드를 추가해야 한다.
+ */
 function toFestivalResponseFromWishlist(item: {
   id: string;
   name: string;
@@ -156,6 +178,9 @@ function toFestivalResponseFromWishlist(item: {
   address: string | null;
   startDate: string | null;
   endDate: string | null;
+  progressStatus: FestivalProgressStatus | null;
+  wishlistCount: number;
+  reviewCount: number;
 }): UserFestivalResponse {
   return {
     id: item.id,
@@ -171,8 +196,10 @@ function toFestivalResponseFromWishlist(item: {
     homepageUrl: null,
     latitude: null,
     longitude: null,
-    progressStatus: null,
+    progressStatus: item.progressStatus,
     wishlisted: true,
+    wishlistCount: item.wishlistCount,
+    reviewCount: item.reviewCount,
   };
 }
 

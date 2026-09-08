@@ -1,13 +1,13 @@
-// src/features/map/MapPanel.tsx (전체)
 "use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { HeartFilledIcon, HeartIcon } from "@radix-ui/react-icons";
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { toggleWishlist } from "@/features/wishlist/api";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
-import { StatusBadge, formatDateRange } from "@/features/festivals/FestivalCard";
+import { FestivalStats, StatusBadge, formatDateRange } from "@/features/festivals/FestivalCard";
 import { getFestivalCongestion, getFestivals } from "@/features/festivals/api";
 import type { FestivalProgressStatus, UserFestivalResponse } from "@/features/festivals/types";
 import { type KakaoMapInstance, loadKakaoMapsSdk } from "@/lib/map/kakaoMaps";
@@ -68,11 +68,16 @@ function buildMarkerElement(festival: UserFestivalResponse): HTMLDivElement {
  */
 export function MapPanel() {
   const [tab, setTab] = useState<MapFilterTab>("ALL");
+  const [wishlistOnly, setWishlistOnly] = useState(false);
   const [selected, setSelected] = useState<UserFestivalResponse | null>(null);
   const [sdkError, setSdkError] = useState<string | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<KakaoMapInstance | null>(null);
   const overlaysRef = useRef<{ setMap: (map: KakaoMapInstance | null) => void }[]>([]);
+
+  const hasHydrated = useUserAuthHasHydrated();
+  const session = useUserAuthStore((state) => state.session);
+  const isLoggedIn = hasHydrated && session !== null;
 
   const query = useQuery({
     queryKey: ["festivals-map", tab],
@@ -80,10 +85,15 @@ export function MapPanel() {
     queryFn: () => getFestivals({ page: 0, size: 100, status: tab === "ALL" ? undefined : tab }),
   });
 
+  // "찜한 것만 보기"는 별도 API를 새로 안 만들고, 이미 받아온 목록(각 항목에 wishlisted
+  // 여부가 이미 포함돼 있음)을 그대로 걸러서 쓴다 — 지도에 뜨는 축제 수가 최대 100개라
+  // 클라이언트에서 걸러도 무리 없다.
   const festivalsWithCoords = useMemo(
     () =>
-      (query.data?.items ?? []).filter((item) => item.latitude !== null && item.longitude !== null),
-    [query.data],
+      (query.data?.items ?? [])
+        .filter((item) => item.latitude !== null && item.longitude !== null)
+        .filter((item) => !wishlistOnly || item.wishlisted),
+    [query.data, wishlistOnly],
   );
 
   // 지도는 최초 1회만 만들고, 이후엔 마커(오버레이)만 갈아끼운다 — 매 렌더마다 지도를
@@ -136,22 +146,51 @@ export function MapPanel() {
 
   return (
     <div className="relative flex h-[calc(100dvh-48px)] flex-col">
-      <div className="flex gap-2 overflow-x-auto border-b border-zinc-100 bg-white px-4 py-3">
-        {TABS.map((value) => (
+      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 bg-white px-4 py-3">
+        <div className="flex gap-2 overflow-x-auto">
+          {TABS.map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTab(value)}
+              className={
+                tab === value
+                  ? "body-small-bold shrink-0 rounded-full bg-point-600 px-3 py-1.5 text-white"
+                  : "body-small shrink-0 rounded-full bg-zinc-100 px-3 py-1.5 text-zinc-700"
+              }
+            >
+              {TAB_LABEL[value]}
+            </button>
+          ))}
+        </div>
+
+        {isLoggedIn ? (
           <button
-            key={value}
             type="button"
-            onClick={() => setTab(value)}
+            onClick={() => setWishlistOnly((current) => !current)}
+            aria-pressed={wishlistOnly}
+            aria-label={wishlistOnly ? "찜한 축제만 보기 해제" : "찜한 축제만 보기"}
             className={
-              tab === value
-                ? "body-small-bold shrink-0 rounded-full bg-point-600 px-3 py-1.5 text-white"
-                : "body-small shrink-0 rounded-full bg-zinc-100 px-3 py-1.5 text-zinc-700"
+              wishlistOnly
+                ? "flex shrink-0 items-center gap-1 rounded-full bg-point-600 px-3 py-1.5 text-white"
+                : "flex shrink-0 items-center gap-1 rounded-full bg-zinc-100 px-3 py-1.5 text-zinc-700"
             }
           >
-            {TAB_LABEL[value]}
+            {wishlistOnly ? (
+              <HeartFilledIcon className="size-4" />
+            ) : (
+              <HeartIcon className="size-4" />
+            )}
+            <span className="body-small">찜한 축제만</span>
           </button>
-        ))}
+        ) : null}
       </div>
+
+      {wishlistOnly && festivalsWithCoords.length === 0 ? (
+        <p className="body-small px-4 py-2 text-zinc-400">
+          이 조건에 좌표가 있는 찜한 축제가 없어요.
+        </p>
+      ) : null}
 
       {query.isError ? (
         <p className="body-small p-4 text-error">{getApiErrorMessage(query.error)}</p>
@@ -168,7 +207,11 @@ export function MapPanel() {
       </Link>
 
       {selected ? (
-        <FestivalMarkerCard festival={selected} onClose={() => setSelected(null)} />
+        <FestivalMarkerCard
+          key={selected.id}
+          festival={selected}
+          onClose={() => setSelected(null)}
+        />
       ) : null}
     </div>
   );
@@ -187,6 +230,15 @@ function FestivalMarkerCard({
   const session = useUserAuthStore((state) => state.session);
   const isLoggedIn = hasHydrated && session !== null;
 
+  // [수정] festival은 지도 마커를 클릭한 시점의 스냅샷이라, 부모(MapPanel)의 목록이
+  // 백그라운드에서 다시 불러와져도 이 카드에 표시된 festival 객체 자체는 안 바뀐다.
+  // 그래서 하트를 눌러도 요청은 나가는데 화면의 하트 아이콘이 그대로였다 — 카드 안에
+  // 로컬 상태를 따로 둬서, 토글 응답이 오면 이 카드가 즉시 반영하게 고쳤다. 다른 마커를
+  // 선택하면 호출부에서 key={festival.id}를 주기 때문에 이 컴포넌트가 통째로 새로
+  // 만들어지고, useState 초기값이 자동으로 새 festival 기준으로 다시 잡힌다.
+  const [wishlisted, setWishlisted] = useState(festival.wishlisted);
+  const [wishlistCount, setWishlistCount] = useState(festival.wishlistCount);
+
   // 지도엔 마커가 여러 개라 전체에 대해 혼잡도를 미리 다 불러오면 요청이 너무 많아진다 —
   // 선택된 축제 하나에 대해서만, 그것도 진행중일 때만 불러온다.
   const congestionQuery = useQuery({
@@ -197,7 +249,9 @@ function FestivalMarkerCard({
 
   const wishlistMutation = useMutation({
     mutationFn: () => toggleWishlist(festival.id),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      setWishlisted(result.wishlisted);
+      setWishlistCount((current) => current + (result.wishlisted ? 1 : -1));
       queryClient.invalidateQueries({ queryKey: ["festivals-map"] });
     },
   });
@@ -221,6 +275,9 @@ function FestivalMarkerCard({
       <p className="body-caption mt-1 text-zinc-400">
         {formatDateRange(festival.startDate, festival.endDate)}
       </p>
+      <div className="mt-1">
+        <FestivalStats wishlistCount={wishlistCount} reviewCount={festival.reviewCount} />
+      </div>
       {congestion?.averageWaitMinutes !== undefined && congestion?.averageWaitMinutes !== null ? (
         <p className="body-caption mt-1 text-zinc-500">
           지금 평균 대기 {congestion.averageWaitMinutes}분
@@ -237,13 +294,18 @@ function FestivalMarkerCard({
             type="button"
             onClick={() => wishlistMutation.mutate()}
             disabled={wishlistMutation.isPending}
-            aria-label={festival.wishlisted ? "찜 취소" : "찜하기"}
+            aria-label={wishlisted ? "찜 취소" : "찜하기"}
             className="body-large"
           >
-            {festival.wishlisted ? "♥" : "♡"}
+            {wishlisted ? "♥" : "♡"}
           </button>
         ) : null}
       </div>
+      {wishlistMutation.isError ? (
+        <p className="body-caption mt-1 text-error">
+          {getApiErrorMessage(wishlistMutation.error, "찜 처리에 실패했어요.")}
+        </p>
+      ) : null}
     </div>
   );
 }

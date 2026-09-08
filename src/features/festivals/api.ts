@@ -21,18 +21,20 @@ function toFestivalResponse<T extends { id: string }>(wire: FestivalWire<T>): T 
 export interface GetFestivalsParams {
   page?: number;
   size?: number;
-  /** 축제명 부분 일치 검색(대소문자 무시). status/sort와 동시에 줄 수 없다(백엔드 제약). */
+  /** 축제명 부분 일치 검색(대소문자 무시). status/region/sort와 동시에 줄 수 없다(백엔드 제약). */
   name?: string;
-  /** 진행 상태 필터. name/sort와 동시에 줄 수 없다. */
+  /** 진행 상태 필터. region/sort와 자유롭게 조합 가능하다. name과는 동시에 줄 수 없다. */
   status?: FestivalProgressStatus;
-  /** 찜/리뷰 많은 순 정렬. name/status와 동시에 줄 수 없다. 없으면 시작일순(기본). */
+  /** 시/도 이름(예: "서울", "경기", "강원"). status/sort와 자유롭게 조합 가능하다. name과는 동시에 줄 수 없다. */
+  region?: string;
+  /** 찜/리뷰 많은 순 정렬. status/region과 자유롭게 조합 가능하다. name과는 동시에 줄 수 없다. */
   sort?: FestivalSort;
 }
 
 export async function getFestivals(
   params: GetFestivalsParams = {},
 ): Promise<UserFestivalPageResponse> {
-  const { page = 0, size = 20, name, status, sort } = params;
+  const { page = 0, size = 20, name, status, region, sort } = params;
   const { data } = await userApiClient.get<
     ApiResponse<
       Omit<UserFestivalPageResponse, "items"> & { items: FestivalWire<UserFestivalResponse>[] }
@@ -43,6 +45,7 @@ export async function getFestivals(
       size,
       name: name && name.trim() !== "" ? name.trim() : undefined,
       status,
+      region: region && region !== "ALL" ? region : undefined,
       sort,
     },
   });

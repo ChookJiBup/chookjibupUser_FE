@@ -20,11 +20,11 @@ import {
   isAuthExpiredError,
 } from "@/lib/api/httpError";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
-import dynamic from "next/dynamic";
 import { toggleWishlist } from "@/features/wishlist/api";
 import { ReviewsPanel } from "@/features/reviews/ReviewsPanel";
+import { LocationMiniMap } from "@/components/ui/LocationMiniMap";
 import { getFestivalCongestion, getFestivalDetail } from "./api";
-import { FestivalThumbnail, StatusBadge } from "./FestivalCard";
+import { FestivalStats, FestivalThumbnail, StatusBadge } from "./FestivalCard";
 import type {
   BoothCongestionLevel,
   BoothCongestionResponse,
@@ -32,13 +32,6 @@ import type {
   RoadmapResponse,
   UserFestivalDetailResponse,
 } from "./types";
-
-// Leaflet은 모듈을 불러오는 시점에 window를 참조해서, 서버 렌더링(SSR) 중에 그대로
-// import하면 "window is not defined"로 죽는다. ssr:false로 브라우저에서만 불러온다.
-const LocationMiniMap = dynamic(
-  () => import("@/components/ui/LocationMiniMap").then((mod) => mod.LocationMiniMap),
-  { ssr: false },
-);
 
 type Tab = "INFO" | "MAP" | "REVIEW";
 
@@ -107,8 +100,8 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
       <div className="flex flex-col gap-4 p-5">
         <div className="flex flex-col gap-1">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <h1 className="body-large-bold text-zinc-950">{festival.name}</h1>
+            <div className="flex min-w-0 items-start gap-2">
+              <h1 className="body-large-bold min-w-0 flex-1 text-zinc-950">{festival.name}</h1>
               <StatusBadge status={festival.progressStatus} />
             </div>
             <div className="flex shrink-0 items-center gap-3">
@@ -149,6 +142,10 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
               </>
             ) : null}
           </p>
+          <FestivalStats
+            wishlistCount={festival.wishlistCount}
+            reviewCount={festival.reviewCount}
+          />
         </div>
 
         {wishlistMutation.isError ? (

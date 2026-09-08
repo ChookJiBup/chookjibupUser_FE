@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
-import { HeartFilledIcon, HeartIcon, ImageIcon } from "@radix-ui/react-icons";
+import { ChatBubbleIcon, HeartFilledIcon, HeartIcon, ImageIcon } from "@radix-ui/react-icons";
 import { toggleWishlist } from "@/features/wishlist/api";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
 import type { FestivalProgressStatus, UserFestivalResponse } from "./types";
@@ -14,7 +14,6 @@ export const STATUS_LABEL: Record<FestivalProgressStatus, string> = {
   COMPLETED: "진행 완료",
 };
 
-/** 진행 상태별 뱃지 색상. 디자인 토큰(globals.css)의 point/secondary/zinc 컬러를 그대로 쓴다. */
 export const STATUS_BADGE_CLASS: Record<FestivalProgressStatus, string> = {
   ONGOING: "bg-point-600 text-white",
   UPCOMING: "bg-secondary-600 text-white",
@@ -37,11 +36,6 @@ export function formatDateRange(startDate: string | null, endDate: string | null
   return `${startDate} ~ ${endDate}`;
 }
 
-/**
- * 축제 썸네일. [알려진 제약] 백엔드에 축제 이미지 URL 필드가 아직 없다(Figma 메모에도
- * "v1. BE API 썸네일 추가 필요"라고 적혀 있음) — 그래서 지금은 항상 이 회색 플레이스홀더만
- * 보여준다. 나중에 백엔드가 이미지 URL을 내려주면 이 컴포넌트 안에서 <img>로 바꾸면 된다.
- */
 export function FestivalThumbnail({
   size = 64,
   className = "",
@@ -60,9 +54,31 @@ export function FestivalThumbnail({
 }
 
 /**
- * 축제 목록/검색 결과에서 공통으로 쓰는 하트(찜) 버튼이다.
- * 목록·검색 화면 둘 다 이 컴포넌트를 그대로 재사용한다.
+ * 찜/리뷰 개수 표시. 로그인 여부와 무관하게 항상 보인다(하트 버튼은 로그인해야만
+ * 액션이 가능해서 비로그인 시 숨기지만, "몇 명이 찜했는지" 숫자 자체는 누구나 볼 수 있는
+ * 공개 정보다).
  */
+export function FestivalStats({
+  wishlistCount,
+  reviewCount,
+}: {
+  wishlistCount: number;
+  reviewCount: number;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="body-caption flex items-center gap-1 text-zinc-400">
+        <HeartIcon className="size-3.5" />
+        {wishlistCount}
+      </span>
+      <span className="body-caption flex items-center gap-1 text-zinc-400">
+        <ChatBubbleIcon className="size-3.5" />
+        {reviewCount}
+      </span>
+    </div>
+  );
+}
+
 export function WishlistHeart({ festival }: { festival: UserFestivalResponse }) {
   const queryClient = useQueryClient();
   const hasHydrated = useUserAuthHasHydrated();
@@ -103,10 +119,6 @@ export function WishlistHeart({ festival }: { festival: UserFestivalResponse }) 
   );
 }
 
-/**
- * 축제 목록/검색 결과의 한 줄. FestivalListPanel과 SearchPanel이 같이 쓴다 —
- * 화면마다 각자 카드를 새로 만들지 않도록 여기 하나로 모았다.
- */
 export function FestivalCard({ festival }: { festival: UserFestivalResponse }) {
   return (
     <Link
@@ -115,14 +127,15 @@ export function FestivalCard({ festival }: { festival: UserFestivalResponse }) {
     >
       <FestivalThumbnail />
       <div className="flex flex-1 flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <p className="body-regular-bold text-zinc-950">{festival.name}</p>
+        <div className="flex items-start gap-2">
+          <p className="body-regular-bold min-w-0 flex-1 text-zinc-950">{festival.name}</p>
           <StatusBadge status={festival.progressStatus} />
         </div>
         <p className="body-small text-zinc-500">{festival.eventPlace ?? festival.address ?? ""}</p>
         <p className="body-caption text-zinc-400">
           {formatDateRange(festival.startDate, festival.endDate)}
         </p>
+        <FestivalStats wishlistCount={festival.wishlistCount} reviewCount={festival.reviewCount} />
       </div>
       <WishlistHeart festival={festival} />
     </Link>

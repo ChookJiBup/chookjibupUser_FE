@@ -21,6 +21,8 @@ export interface UserFestivalResponse {
   longitude: number | null;
   progressStatus: FestivalProgressStatus | null;
   wishlisted: boolean;
+  wishlistCount: number;
+  reviewCount: number;
 }
 
 export interface PageMeta {
@@ -106,6 +108,8 @@ export interface UserFestivalDetailResponse {
   progressStatus: FestivalProgressStatus | null;
   wishlisted: boolean;
   roadmap: RoadmapResponse | null;
+  wishlistCount: number;
+  reviewCount: number;
 }
 
 /** 목록 정렬 기준. name/status 필터와 동시에 쓸 수 없다(백엔드 제약). */
