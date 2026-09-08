@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Roboto } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -19,6 +19,8 @@ const roboto = Roboto({
   variable: "--font-roboto",
 });
 
+export const viewport: Viewport = { viewportFit: "cover" };
+
 export const metadata: Metadata = {
   title: "축지법",
   description: "AI 기반 축제 대기열 배치 설계 및 대기시간 안내 플랫폼",
@@ -35,7 +37,9 @@ export default function RootLayout({
         <Providers>
           <div className="mobile-app-shell mx-auto flex flex-col bg-white shadow-sm">
             <Header />
-            <main className="flex flex-1 flex-col">{children}</main>
+            <main className="relative isolate z-0 flex min-w-0 flex-1 flex-col px-5 py-4">
+              {children}
+            </main>
           </div>
         </Providers>
       </body>

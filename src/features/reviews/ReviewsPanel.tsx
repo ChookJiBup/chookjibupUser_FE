@@ -24,7 +24,7 @@ export function ReviewsPanel({ festivalId }: { festivalId: string }) {
       : 0;
 
   return (
-    <section className="flex flex-col gap-3 px-5 py-4">
+    <section className="flex flex-col gap-3 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <p className="body-regular-bold text-zinc-950">{average.toFixed(1)}</p>

@@ -55,7 +55,7 @@ export function ReviewWritePanel({ festivalId }: { festivalId: string }) {
 
   if (!hasHydrated || !session) {
     // 리다이렉트되는 동안 잠깐 보이는 화면.
-    return <p className="body-regular p-4 text-zinc-500">로그인 화면으로 이동합니다...</p>;
+    return <p className="body-regular text-zinc-500">로그인 화면으로 이동합니다...</p>;
   }
 
   const festival = festivalQuery.data;
@@ -63,7 +63,7 @@ export function ReviewWritePanel({ festivalId }: { festivalId: string }) {
   return (
     <div className="flex flex-col gap-6 pb-8">
       {festival ? (
-        <div className="flex flex-col gap-1 border-b border-zinc-100 px-5 py-4">
+        <div className="flex flex-col gap-1 border-b border-zinc-100 pb-4">
           <div className="flex items-center gap-2">
             <p className="body-large-bold text-zinc-950">{festival.name}</p>
             <StatusBadge status={festival.progressStatus} />
@@ -77,7 +77,7 @@ export function ReviewWritePanel({ festivalId }: { festivalId: string }) {
       ) : null}
 
       <form
-        className="flex flex-col gap-4 px-5"
+        className="flex flex-col gap-4"
         onSubmit={(event) => {
           event.preventDefault();
           if (rating > 0 && content.trim()) createMutation.mutate();
@@ -137,7 +137,7 @@ function ReviewListSection({
       : 0;
 
   return (
-    <div className="flex flex-col gap-3 px-5">
+    <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <p className="body-regular-bold text-zinc-950">{average.toFixed(1)}</p>
         <StarRating value={Math.round(average)} size={16} />

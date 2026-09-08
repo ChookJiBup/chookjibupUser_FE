@@ -1,9 +1,11 @@
 "use client";
 
+import { HeartIcon } from "@/components/icons/HeartIcon";
+
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { HeartFilledIcon, HeartIcon } from "@radix-ui/react-icons";
+
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { toggleWishlist } from "@/features/wishlist/api";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
@@ -145,8 +147,8 @@ export function MapPanel() {
   }, [festivalsWithCoords]);
 
   return (
-    <div className="relative flex h-[calc(100dvh-48px)] flex-col">
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 bg-white px-4 py-3">
+    <div className="relative -mx-5 -my-4 flex h-[calc(100dvh-var(--app-header-height))] flex-col">
+      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 bg-white px-5 py-3">
         <div className="flex gap-2 overflow-x-auto">
           {TABS.map((value) => (
             <button
@@ -176,26 +178,20 @@ export function MapPanel() {
                 : "flex shrink-0 items-center gap-1 rounded-full bg-zinc-100 px-3 py-1.5 text-zinc-700"
             }
           >
-            {wishlistOnly ? (
-              <HeartFilledIcon className="size-4" />
-            ) : (
-              <HeartIcon className="size-4" />
-            )}
+            <HeartIcon filled={wishlistOnly} className="size-4" />
             <span className="body-small">찜한 축제만</span>
           </button>
         ) : null}
       </div>
 
       {wishlistOnly && festivalsWithCoords.length === 0 ? (
-        <p className="body-small px-4 py-2 text-zinc-400">
-          이 조건에 좌표가 있는 찜한 축제가 없어요.
-        </p>
+        <p className="body-small py-2 text-zinc-400">이 조건에 좌표가 있는 찜한 축제가 없어요.</p>
       ) : null}
 
       {query.isError ? (
-        <p className="body-small p-4 text-error">{getApiErrorMessage(query.error)}</p>
+        <p className="body-small text-error">{getApiErrorMessage(query.error)}</p>
       ) : null}
-      {sdkError ? <p className="body-small p-4 text-error">{sdkError}</p> : null}
+      {sdkError ? <p className="body-small text-error">{sdkError}</p> : null}
 
       <div ref={mapContainerRef} className="min-h-0 flex-1" />
 
@@ -295,9 +291,10 @@ function FestivalMarkerCard({
             onClick={() => wishlistMutation.mutate()}
             disabled={wishlistMutation.isPending}
             aria-label={wishlisted ? "찜 취소" : "찜하기"}
-            className="body-large"
+            aria-pressed={wishlisted}
+            className={`inline-flex size-8 items-center justify-center ${wishlisted ? "text-red-500" : "text-zinc-950"}`}
           >
-            {wishlisted ? "♥" : "♡"}
+            <HeartIcon filled={wishlisted} aria-hidden className="size-4" />
           </button>
         ) : null}
       </div>

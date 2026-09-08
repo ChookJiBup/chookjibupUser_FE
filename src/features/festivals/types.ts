@@ -7,6 +7,8 @@ export interface UserFestivalResponse {
    */
   id: string;
   name: string;
+  /** 공개 포스터 URL. 구버전 API/이미지 미등록 시 생략 또는 null. */
+  imageUrl?: string | null;
   eventPlace: string | null;
   address: string | null;
   detailAddress: string | null;
@@ -93,6 +95,8 @@ export interface UserFestivalDetailResponse {
    */
   id: string;
   name: string;
+  /** 공개 포스터 URL. 구버전 API/이미지 미등록 시 생략 또는 null. */
+  imageUrl?: string | null;
   eventPlace: string | null;
   address: string | null;
   detailAddress: string | null;

@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const backendOrigin = process.env.BACKEND_ORIGIN ?? "http://localhost:8080";
+const backendOrigin = process.env.BACKEND_ORIGIN ?? "https://user-api.chookjibup.store";
 
 const nextConfig: NextConfig = {
   async rewrites() {

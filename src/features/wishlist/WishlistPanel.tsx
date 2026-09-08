@@ -32,6 +32,7 @@ function toFestivalResponse(item: MyWishlistFestivalResponse): UserFestivalRespo
   return {
     id: item.id,
     name: item.name,
+    imageUrl: item.imageUrl,
     eventPlace: item.eventPlace,
     address: item.address,
     detailAddress: null,
@@ -123,7 +124,7 @@ export function WishlistPanel() {
 
   return (
     <div className="flex flex-col pb-24">
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
+      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 py-3">
         <div className="flex items-center gap-2">
           {editMode ? (
             <button type="button" onClick={toggleEditMode} aria-label="편집 취소">
@@ -154,12 +155,12 @@ export function WishlistPanel() {
       </div>
 
       {deleteMutation.isError ? (
-        <p className="body-caption px-4 py-2 text-error">
+        <p className="body-caption py-2 text-error">
           {getApiErrorMessage(deleteMutation.error, "삭제하지 못했습니다.")}
         </p>
       ) : null}
 
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-4 py-3">
+      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 py-3">
         <select
           value={sort}
           onChange={(event) => setSort(event.target.value as SortOption)}
@@ -194,34 +195,31 @@ export function WishlistPanel() {
         <button
           type="button"
           onClick={toggleSelectAll}
-          className="body-small border-b border-zinc-100 px-4 py-2 text-left text-zinc-500"
+          className="body-small border-b border-zinc-100 py-2 text-left text-zinc-500"
         >
           {selectedIds.size === items.length && items.length > 0 ? "전체 선택 해제" : "전체 선택"}
         </button>
       ) : null}
 
-      {query.isLoading ? <p className="body-regular p-4 text-zinc-500">불러오는 중...</p> : null}
+      {query.isLoading ? <p className="body-regular text-zinc-500">불러오는 중...</p> : null}
       {query.fetchStatus === "paused" ? (
-        <p className="body-small p-4 text-error">네트워크 연결을 확인해 주세요.</p>
+        <p className="body-small text-error">네트워크 연결을 확인해 주세요.</p>
       ) : null}
       {query.isError ? (
-        <p className="body-small p-4 text-error">{getApiErrorMessage(query.error)}</p>
+        <p className="body-small text-error">{getApiErrorMessage(query.error)}</p>
       ) : null}
 
       {query.data && allItems.length === 0 ? (
-        <p className="body-regular p-4 text-zinc-500">찜한 축제가 없습니다.</p>
+        <p className="body-regular text-zinc-500">찜한 축제가 없습니다.</p>
       ) : null}
       {query.data && allItems.length > 0 && items.length === 0 ? (
-        <p className="body-regular p-4 text-zinc-500">해당하는 축제가 없습니다.</p>
+        <p className="body-regular text-zinc-500">해당하는 축제가 없습니다.</p>
       ) : null}
 
       <div className="flex flex-col">
         {items.map((item) =>
           editMode ? (
-            <label
-              key={item.id}
-              className="flex items-center gap-3 border-b border-zinc-100 px-4 py-2"
-            >
+            <label key={item.id} className="flex items-center gap-3 border-b border-zinc-100 py-2">
               <input
                 type="checkbox"
                 checked={selectedIds.has(item.id)}

@@ -87,7 +87,7 @@ export function SignupPanel() {
   }, [emailSent, emailVerified, remainingSeconds]);
 
   return (
-    <div className="flex flex-1 flex-col px-5 py-6">
+    <div className="flex flex-1 flex-col">
       <h1 className="heading-regular text-center text-zinc-950">회원가입</h1>
 
       {step === 1 ? (
