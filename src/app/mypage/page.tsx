@@ -31,7 +31,7 @@ function MyPageContent() {
   if (!session) return null;
 
   return (
-    <div className="flex flex-col gap-4 p-5">
+    <div className="flex flex-col gap-4">
       <h1 className="heading-small text-zinc-950">마이페이지</h1>
       <div className="flex items-center gap-3 rounded-lg border border-zinc-200 p-4">
         {session.profileImageUrl ? (

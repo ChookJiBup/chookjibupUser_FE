@@ -85,7 +85,7 @@ export function SearchPanel() {
   }
 
   return (
-    <div className="flex flex-col gap-5 p-5">
+    <div className="flex flex-col gap-5">
       <p className="heading-small text-zinc-950">축제 검색</p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-1">

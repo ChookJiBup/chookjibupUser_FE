@@ -4,6 +4,9 @@
   --background: var(--color-zinc-50);
   --foreground: #171717;
   --app-max-width: 402px;
+  --app-safe-top: max(16px, env(safe-area-inset-top, 0px));
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-header-height: calc(49px + var(--app-safe-top));
 }
 
 @theme inline {

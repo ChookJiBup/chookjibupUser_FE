@@ -1,6 +1,13 @@
 "use client";
 
-import { Cross1Icon, HamburgerMenuIcon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
+import { HeartIcon } from "@/components/icons/HeartIcon";
+
+import {
+  Cross1Icon,
+  GearIcon,
+  HamburgerMenuIcon,
+  MagnifyingGlassIcon,
+} from "@radix-ui/react-icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -31,13 +38,8 @@ export function Header() {
   }
 
   return (
-    // [중요] 드로어/딤드 배경을 <header> "바깥"(형제)으로 뺐다. <header>가
-    // sticky라서(=포지션 기준점이 됨), absolute 자식을 header 안에 두면
-    // header 자신의 높이(48px)를 기준으로 좌표가 잡혀서 드로어가 거의 찌그러진다.
-    // Fragment로 감싸서 .mobile-app-shell(position:relative, 402px 폭) 바로
-    // 아래 형제로 두면, 그게 진짜 기준점이 된다.
     <>
-      <header className="sticky top-0 z-20 border-b border-zinc-100 bg-white">
+      <header className="sticky top-0 z-40 border-b border-zinc-100 bg-white pt-[var(--app-safe-top)]">
         <div className="flex h-12 items-center justify-between px-5">
           <div className="flex h-8 w-[84px] shrink-0 items-center gap-3">
             <IconButton
@@ -56,6 +58,10 @@ export function Header() {
             />
             <Link
               href="/"
+              onClick={() => {
+                closeMenu();
+                window.dispatchEvent(new Event("festival-home-reset"));
+              }}
               className="body-caption flex h-8 w-12 shrink-0 items-center justify-center rounded bg-zinc-100 text-zinc-950"
             >
               축지법
@@ -94,32 +100,52 @@ export function Header() {
       </header>
 
       {menuOpen ? (
-        <>
+        <div className="fixed inset-0 z-50 mx-auto w-full max-w-[var(--app-max-width)]">
           <button
             type="button"
             aria-label="메뉴 닫기"
             onClick={closeMenu}
-            className="absolute inset-x-0 bottom-0 top-12 z-10 bg-zinc-950/40"
+            className="absolute inset-0 bg-zinc-950/40"
           />
-          <nav className="absolute bottom-0 left-0 top-12 z-10 flex w-[80%] max-w-[322px] flex-col bg-white pb-6 shadow-xl">
+          <nav className="absolute inset-y-0 left-0 flex w-[80%] max-w-[322px] flex-col bg-white pb-[calc(26px+var(--app-safe-bottom))] pt-[calc(var(--app-safe-top)+16px)] shadow-xl">
             {!isLoggedIn ? (
-              <Link href="/login" onClick={closeMenu} className="body-regular px-5 py-4">
+              <Link
+                href="/login"
+                onClick={closeMenu}
+                className="body-regular-bold flex h-[52px] shrink-0 items-center px-7 py-3.5 text-point-600"
+              >
                 로그인
               </Link>
             ) : null}
-            <Link href="/search" onClick={closeMenu} className="body-regular px-5 py-4">
+            <Link
+              href="/search"
+              onClick={closeMenu}
+              className="body-regular flex h-[52px] shrink-0 items-center gap-2 px-7 py-3.5 text-zinc-800"
+            >
+              <MagnifyingGlassIcon aria-hidden className="size-4 shrink-0" />
               검색하기
             </Link>
 
+            {!isLoggedIn && <hr className="mx-5 border-0 border-t border-zinc-100" />}
             {isLoggedIn ? (
               <>
-                <div className="h-2 bg-zinc-50" />
-                <Link href="/wishlist" onClick={closeMenu} className="body-regular px-5 py-4">
+                <Link
+                  href="/wishlist"
+                  onClick={closeMenu}
+                  className="body-regular flex h-[52px] shrink-0 items-center gap-2 px-7 py-3.5 text-zinc-800"
+                >
+                  <HeartIcon filled aria-hidden className="size-4 shrink-0" />
                   내가 저장한 축제
                 </Link>
-                <Link href="/mypage" onClick={closeMenu} className="body-regular px-5 py-4">
+                <Link
+                  href="/mypage"
+                  onClick={closeMenu}
+                  className="body-regular flex h-[52px] shrink-0 items-center gap-2 px-7 py-3.5 text-zinc-800"
+                >
+                  <GearIcon aria-hidden className="size-4 shrink-0" />
                   마이페이지
                 </Link>
+                <hr className="mx-5 border-0 border-t border-zinc-100" />
 
                 <button
                   type="button"
@@ -127,14 +153,14 @@ export function Header() {
                     closeMenu();
                     handleLogout();
                   }}
-                  className="body-regular mt-auto px-5 py-4 text-left text-zinc-500"
+                  className="body-regular mt-auto h-[52px] shrink-0 px-7 py-3.5 text-left text-zinc-800"
                 >
                   로그아웃
                 </button>
               </>
             ) : null}
           </nav>
-        </>
+        </div>
       ) : null}
     </>
   );

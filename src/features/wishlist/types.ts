@@ -8,6 +8,7 @@ export interface WishlistToggleResponse {
 export interface MyWishlistFestivalResponse {
   id: string;
   name: string;
+  imageUrl?: string | null;
   eventPlace: string | null;
   address: string | null;
   startDate: string | null;

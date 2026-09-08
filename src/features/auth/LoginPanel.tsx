@@ -28,7 +28,7 @@ export function LoginPanel() {
   });
 
   return (
-    <div className="flex flex-1 flex-col justify-center px-5 pb-24">
+    <div className="flex flex-1 flex-col justify-center pb-24">
       <section className="flex w-full flex-col gap-4">
         <h1 className="heading-regular mb-1 text-center text-zinc-950">축지법</h1>
 

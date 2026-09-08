@@ -1,5 +1,7 @@
 "use client";
 
+import { HeartIcon } from "@/components/icons/HeartIcon";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
@@ -7,8 +9,6 @@ import {
   CalendarIcon,
   ClipboardCopyIcon,
   ExternalLinkIcon,
-  HeartFilledIcon,
-  HeartIcon,
   Link2Icon,
   ReloadIcon,
   SewingPinIcon,
@@ -69,11 +69,11 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
   });
 
   if (query.isLoading) {
-    return <p className="body-regular p-4 text-zinc-500">불러오는 중...</p>;
+    return <p className="body-regular text-zinc-500">불러오는 중...</p>;
   }
 
   if (query.fetchStatus === "paused") {
-    return <p className="body-small p-4 text-error">네트워크 연결을 확인해 주세요.</p>;
+    return <p className="body-small text-error">네트워크 연결을 확인해 주세요.</p>;
   }
 
   if (query.isError) {
@@ -87,7 +87,7 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
         </div>
       );
     }
-    return <p className="body-small p-4 text-error">{getApiErrorMessage(query.error)}</p>;
+    return <p className="body-small text-error">{getApiErrorMessage(query.error)}</p>;
   }
 
   const festival = query.data;
@@ -95,9 +95,9 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
 
   return (
     <div className="flex flex-col">
-      <FestivalThumbnail size={200} className="w-full rounded-none" />
+      <FestivalThumbnail imageUrl={festival.imageUrl} size={200} className="w-full rounded-none" />
 
-      <div className="flex flex-col gap-4 p-5">
+      <div className="flex flex-col gap-4 py-4">
         <div className="flex flex-col gap-1">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-2">
@@ -122,13 +122,9 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
                   onClick={() => wishlistMutation.mutate()}
                   disabled={wishlistMutation.isPending}
                   aria-label={festival.wishlisted ? "찜 취소" : "찜하기"}
-                  className="text-point-600"
+                  className={festival.wishlisted ? "text-red-500" : "text-zinc-950"}
                 >
-                  {festival.wishlisted ? (
-                    <HeartFilledIcon className="size-5" />
-                  ) : (
-                    <HeartIcon className="size-5" />
-                  )}
+                  <HeartIcon filled={festival.wishlisted} className="size-4" />
                 </button>
               ) : null}
             </div>
@@ -330,7 +326,7 @@ function FestivalInfoTab({ festival }: { festival: UserFestivalDetailResponse })
 
   return (
     <div className="flex flex-col">
-      <div className="flex flex-col gap-4 p-5">
+      <div className="flex flex-col gap-4 py-4">
         <p className="body-regular-bold text-zinc-950">기본 정보</p>
 
         {festival.startDate && festival.endDate ? (
@@ -390,7 +386,7 @@ function FestivalInfoTab({ festival }: { festival: UserFestivalDetailResponse })
       <div className="h-2 bg-zinc-100" />
 
       {festival.latitude !== null && festival.longitude !== null ? (
-        <div className="flex flex-col gap-3 p-5">
+        <div className="flex flex-col gap-3 py-4">
           <p className="body-regular-bold text-zinc-950">지도</p>
           <LocationMiniMap latitude={festival.latitude} longitude={festival.longitude} />
           {address ? (
@@ -412,7 +408,7 @@ function FestivalInfoTab({ festival }: { festival: UserFestivalDetailResponse })
       {festival.content ? (
         <>
           <div className="h-2 bg-zinc-100" />
-          <div className="flex flex-col gap-3 p-5">
+          <div className="flex flex-col gap-3 py-4">
             <p className="body-regular-bold text-zinc-950">상세 정보</p>
             <p className="body-regular whitespace-pre-line text-zinc-700">{festival.content}</p>
           </div>
@@ -438,13 +434,13 @@ function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.Re
  */
 function RoadmapTab({ roadmap }: { roadmap: RoadmapResponse | null }) {
   if (!roadmap) {
-    return <p className="body-regular p-5 text-zinc-400">아직 배치도가 공개되지 않았어요.</p>;
+    return <p className="body-regular py-4 text-zinc-400">아직 배치도가 공개되지 않았어요.</p>;
   }
 
   const hasBooths = roadmap.zones.some((zone) => zone.booths.length > 0);
 
   return (
-    <div className="flex flex-col gap-3 p-5">
+    <div className="flex flex-col gap-3 py-4">
       {roadmap.mapImageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img

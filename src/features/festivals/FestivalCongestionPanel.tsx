@@ -28,23 +28,23 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-3">
+      <div className="flex items-center gap-2 border-b border-zinc-100 py-3">
         <Link href={`/festivals/${festivalId}`} aria-label="뒤로가기">
           <ChevronLeftIcon className="size-5 text-zinc-700" />
         </Link>
         <p className="body-regular-bold text-zinc-950">축제 현황</p>
       </div>
 
-      {query.isLoading ? <p className="body-regular p-4 text-zinc-500">불러오는 중...</p> : null}
+      {query.isLoading ? <p className="body-regular text-zinc-500">불러오는 중...</p> : null}
       {query.fetchStatus === "paused" ? (
-        <p className="body-small p-4 text-error">네트워크 연결을 확인해 주세요.</p>
+        <p className="body-small text-error">네트워크 연결을 확인해 주세요.</p>
       ) : null}
       {query.isError ? (
-        <p className="body-small p-4 text-error">{getApiErrorMessage(query.error)}</p>
+        <p className="body-small text-error">{getApiErrorMessage(query.error)}</p>
       ) : null}
 
       {query.data ? (
-        <div className="flex flex-col gap-3 p-4">
+        <div className="flex flex-col gap-3 py-4">
           {query.data.averageWaitMinutes !== null ? (
             <p className="body-small text-zinc-500">
               평균 대기 {query.data.averageWaitMinutes}분 · 혼잡한 부스{" "}
@@ -69,7 +69,7 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
 
 function BoothRow({ booth }: { booth: BoothCongestionResponse }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3">
+    <div className="flex items-center justify-between py-3">
       <p className="body-small text-zinc-950">{booth.boothName}</p>
       <div className="flex items-center gap-2">
         {booth.waitMinutes !== null ? (
