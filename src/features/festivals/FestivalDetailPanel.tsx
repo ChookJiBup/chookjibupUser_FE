@@ -25,7 +25,7 @@ import { ReviewsPanel } from "@/features/reviews/ReviewsPanel";
 import { LocationMiniMap } from "@/components/ui/LocationMiniMap";
 import { getFestivalCongestion, getFestivalDetail } from "./api";
 import { FestivalStats, FestivalThumbnail, StatusBadge } from "./FestivalCard";
-import { readBoundary, readOverlay } from "./mapPresentation";
+import { collectRoadmapPins, readBoundary, readOverlay } from "./mapPresentation";
 import { RoadmapMapView } from "./RoadmapMapView";
 import type {
   BoothCongestionLevel,
@@ -443,12 +443,19 @@ function RoadmapTab({ roadmap }: { roadmap: RoadmapResponse | null }) {
   }
 
   const hasBooths = roadmap.zones.some((zone) => zone.booths.length > 0);
-  const hasMapPresentation =
-    readBoundary(roadmap.presentation) !== null || readOverlay(roadmap.presentation) !== null;
+  /*
+    부지 경계나 팜플렛이 있어야만 지도를 그렸더니, 관리자가 부스만 찍어 둔 축제는
+    «배치도 이미지가 아직 없어요»만 뜨고 위치를 볼 방법이 없었다. 좌표가 있는 핀이
+    하나라도 있으면 지도를 그린다 — 경계·팜플렛은 있으면 얹는 부가 정보다.
+  */
+  const canShowMap =
+    readBoundary(roadmap.presentation) !== null ||
+    readOverlay(roadmap.presentation) !== null ||
+    collectRoadmapPins(roadmap).length > 0;
 
   return (
     <div className="flex flex-col gap-3 py-4">
-      {hasMapPresentation ? (
+      {canShowMap ? (
         <RoadmapMapView roadmap={roadmap} />
       ) : roadmap.mapImageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
