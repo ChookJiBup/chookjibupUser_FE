@@ -7,6 +7,19 @@
   --app-safe-top: max(16px, env(safe-area-inset-top, 0px));
   --app-safe-bottom: env(safe-area-inset-bottom, 0px);
   --app-header-height: calc(49px + var(--app-safe-top));
+
+  /*
+    혼잡도에 쓰는 색은 목록 배지(Tailwind 유틸리티)와 부스지도 핀이 함께 쓴다.
+    지도 핀은 카카오맵 오버레이에 DOM을 직접 만들어 넣어서 Tailwind 클래스를 붙일 수
+    없고, 그래서 예전에는 지도 쪽이 hex를 따로 들고 있다가 "여유"가 지도에선 초록,
+    목록에선 파랑으로 어긋났다.
+    @theme 안에만 두면 값이 유틸리티에 인라인될 뿐 :root 변수로 나오지 않아 인라인
+    스타일에서 var()로 읽을 수 없다. 그래서 실제 색값은 여기 :root에 두고 아래
+    @theme inline이 이 변수를 가리키게 해 양쪽이 같은 출처를 읽게 한다.
+  */
+  --secondary-600: #007cff;
+  --point-600: #fd7e14;
+  --red-500: #fb2c36;
 }
 
 @theme inline {
@@ -28,7 +41,7 @@
   --color-zinc-900: #18181b;
   --color-zinc-950: #09090b;
   --color-red-300: #fca5a5;
-  --color-red-500: #fb2c36;
+  --color-red-500: var(--red-500);
   --color-red-600: #e7000b;
 
   --color-primary-300: #c8dafd;
@@ -40,10 +53,10 @@
   --color-secondary-foreground: #ffffff;
   --color-secondary-300: #bfdeff;
   --color-secondary-500: #409dff;
-  --color-secondary-600: #007cff;
+  --color-secondary-600: var(--secondary-600);
   --color-point-300: #fedfc4;
   --color-point-500: #fd9e4f;
-  --color-point-600: #fd7e14;
+  --color-point-600: var(--point-600);
   --color-error: var(--color-red-500);
   --color-dimmed: color-mix(in srgb, var(--color-zinc-950) 25%, transparent);
 
