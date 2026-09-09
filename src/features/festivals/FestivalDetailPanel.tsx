@@ -4,7 +4,7 @@ import { HeartIcon } from "@/components/icons/HeartIcon";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   CalendarIcon,
   ClipboardCopyIcon,
@@ -25,9 +25,9 @@ import { ReviewsPanel } from "@/features/reviews/ReviewsPanel";
 import { LocationMiniMap } from "@/components/ui/LocationMiniMap";
 import { getFestivalCongestion, getFestivalDetail } from "./api";
 import { FestivalStats, FestivalThumbnail, StatusBadge } from "./FestivalCard";
-import { formatServerUpdatedAt } from "@/lib/serverTime";
-import { collectRoadmapPins, readBoundary, readOverlay } from "./mapPresentation";
-import { RoadmapMapView } from "./RoadmapMapView";
+import { formatClockTime, formatServerUpdatedAt } from "@/lib/serverTime";
+import { collectRoadmapPins, readAreaPoints, readBoundary, readOverlay } from "./mapPresentation";
+import { RoadmapMapView, type BoothCongestionHint } from "./RoadmapMapView";
 import type {
   BoothCongestionLevel,
   BoothCongestionResponse,
@@ -178,7 +178,9 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
       </div>
 
       {tab === "INFO" ? <FestivalInfoTab festival={festival} /> : null}
-      {tab === "MAP" ? <RoadmapTab roadmap={festival.roadmap} /> : null}
+      {tab === "MAP" ? (
+        <RoadmapTab roadmap={festival.roadmap} congestion={congestionQuery.data ?? null} />
+      ) : null}
       {tab === "REVIEW" ? <ReviewsPanel festivalId={festivalId} /> : null}
     </div>
   );
@@ -329,7 +331,7 @@ function FestivalInfoTab({ festival }: { festival: UserFestivalDetailResponse })
           <InfoRow icon={<CalendarIcon className="size-4" />}>
             {festival.startDate} ~ {festival.endDate}
             {festival.operationStartTime && festival.operationEndTime
-              ? ` (${festival.operationStartTime}~${festival.operationEndTime})`
+              ? ` (${formatClockTime(festival.operationStartTime)}~${formatClockTime(festival.operationEndTime)})`
               : ""}
           </InfoRow>
         ) : null}
@@ -431,7 +433,40 @@ function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.Re
  * 관리자가 카카오맵 위에 부지 경계나 팜플렛을 맞춰 뒀으면(presentation) 그 지도를
  * 그대로 보여주고, 아직 안 맞췄으면 지금까지처럼 배치도 이미지만 보여준다.
  */
-function RoadmapTab({ roadmap }: { roadmap: RoadmapResponse | null }) {
+function RoadmapTab({
+  roadmap,
+  congestion,
+}: {
+  roadmap: RoadmapResponse | null;
+  congestion: FestivalCongestionResponse | null;
+}) {
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+
+  /*
+    혼잡도 API의 boothId는 숫자, 배치도 노드는 UUID라 서로 이어 붙일 키가 부스 이름밖에
+    없다. 이름이 겹치는 부스가 생기면 먼저 온 쪽을 쓴다.
+  */
+  const congestionByBoothName = useMemo(() => {
+    const map = new Map<string, BoothCongestionHint>();
+    (congestion?.booths ?? []).forEach((booth) => {
+      if (map.has(booth.boothName)) return;
+      map.set(booth.boothName, {
+        level: booth.congestionLevel,
+        waitMinutes: booth.waitMinutes,
+      });
+    });
+    return map;
+  }, [congestion]);
+
+  /*
+    구역 도형은 노드로 저장돼 otherNodes에 섞여 온다. 지도에 그리는 쪽에서 따로 읽으므로
+    시설 칩 줄에서는 빼야 «로스터리 마켓존»이 화장실 옆에 붙어 있지 않게 된다.
+  */
+  const facilityNodes = useMemo(
+    () => (roadmap ? roadmap.otherNodes.filter((node) => readAreaPoints(node) === null) : []),
+    [roadmap],
+  );
+
   if (!roadmap) {
     return <p className="body-regular py-4 text-zinc-400">아직 배치도가 공개되지 않았어요.</p>;
   }
@@ -450,7 +485,12 @@ function RoadmapTab({ roadmap }: { roadmap: RoadmapResponse | null }) {
   return (
     <div className="flex flex-col gap-3 py-4">
       {canShowMap ? (
-        <RoadmapMapView roadmap={roadmap} />
+        <RoadmapMapView
+          roadmap={roadmap}
+          congestionByBoothName={congestionByBoothName}
+          selectedNodeId={selectedNodeId}
+          onSelectNode={setSelectedNodeId}
+        />
       ) : roadmap.mapImageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -472,11 +512,41 @@ function RoadmapTab({ roadmap }: { roadmap: RoadmapResponse | null }) {
               <div key={zone.zoneId} className="flex flex-col gap-1">
                 <p className="body-small-bold text-zinc-700">{zone.name}</p>
                 <div className="flex flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200">
-                  {zone.booths.map((booth) => (
-                    <div key={booth.publicId} className="px-3 py-2">
-                      <p className="body-small text-zinc-950">{booth.name ?? "이름 없는 부스"}</p>
-                    </div>
-                  ))}
+                  {zone.booths.map((booth) => {
+                    const name = booth.name ?? "이름 없는 부스";
+                    const hint = congestionByBoothName.get(name);
+                    return (
+                      <button
+                        key={booth.publicId}
+                        type="button"
+                        // 목록에서 고르면 지도가 그 부스로 옮겨 간다.
+                        onClick={() =>
+                          setSelectedNodeId((current) =>
+                            current === booth.publicId ? null : booth.publicId,
+                          )
+                        }
+                        className={`flex w-full items-center justify-between px-3 py-2 text-left ${
+                          selectedNodeId === booth.publicId ? "bg-zinc-50" : ""
+                        }`}
+                      >
+                        <span className="body-small text-zinc-950">{name}</span>
+                        {hint?.level ? (
+                          <span className="flex items-center gap-2">
+                            {hint.waitMinutes !== null ? (
+                              <span className="body-caption text-zinc-500">
+                                약 {hint.waitMinutes}분
+                              </span>
+                            ) : null}
+                            <span
+                              className={`body-caption rounded-full px-2 py-0.5 ${CONGESTION_BADGE_CLASS[hint.level]}`}
+                            >
+                              {CONGESTION_LABEL[hint.level]}
+                            </span>
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -485,9 +555,9 @@ function RoadmapTab({ roadmap }: { roadmap: RoadmapResponse | null }) {
         <p className="body-small text-zinc-400">아직 등록된 부스가 없어요.</p>
       )}
 
-      {roadmap.otherNodes.length > 0 ? (
+      {facilityNodes.length > 0 ? (
         <div className="flex flex-wrap gap-2">
-          {roadmap.otherNodes.map((node) => (
+          {facilityNodes.map((node) => (
             <span
               key={node.publicId}
               className="body-caption rounded-full bg-zinc-100 px-2 py-1 text-zinc-700"

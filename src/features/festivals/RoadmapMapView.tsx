@@ -10,19 +10,41 @@ import {
 import { createPamphletOverlay } from "./PamphletOverlay";
 import { createPinIcon } from "./pinIcons";
 import {
+  collectRoadmapAreas,
   collectRoadmapPins,
   readBoundary,
   readOverlay,
   type LatLngPoint,
   type RoadmapPin,
 } from "./mapPresentation";
-import type { RoadmapResponse } from "./types";
+import type { BoothCongestionLevel, RoadmapResponse } from "./types";
 
 /** 경계/팜플렛이 화면에 들어오도록 setBounds를 부르므로 초기 레벨은 크게 중요하지 않다. */
 const INITIAL_LEVEL = 3;
 const FIT_PADDING = 16;
+/** 카카오맵 레벨은 작을수록 확대. 부스가 겹쳐 보이지 않는 선까지만 허용한다. */
+const MIN_LEVEL = 1;
+const MAX_LEVEL = 8;
 
-function buildPinElement(pin: RoadmapPin): HTMLButtonElement {
+/** 부스별 혼잡도. 배치도 노드와 혼잡도 API는 id 체계가 달라 부스 이름으로 잇는다. */
+export interface BoothCongestionHint {
+  level: BoothCongestionLevel | null;
+  waitMinutes: number | null;
+}
+
+const CONGESTION_COLOR: Record<BoothCongestionLevel, string> = {
+  LOW: "#16a34a",
+  MEDIUM: "#fd7e14",
+  HIGH: "#dc2626",
+};
+
+const CONGESTION_LABEL: Record<BoothCongestionLevel, string> = {
+  LOW: "여유",
+  MEDIUM: "보통",
+  HIGH: "혼잡",
+};
+
+function buildPinElement(pin: RoadmapPin, congestion?: BoothCongestionHint): HTMLButtonElement {
   const button = document.createElement("button");
   button.type = "button";
   button.title = pin.name;
@@ -33,7 +55,15 @@ function buildPinElement(pin: RoadmapPin): HTMLButtonElement {
     전부 같은 동그라미로 찍었더니 부스와 화장실·입구가 지도에서 구분되지 않았다.
     관리자 부스맵과 같은 유형 아이콘을 넣고, 부스는 포인트 색·시설은 회색으로 둔다.
   */
-  const color = pin.isBooth ? "#fd7e14" : "#52525b";
+  /*
+    혼잡도가 들어온 부스는 그 색으로 찍는다 — 대기시간을 보려고 목록으로 내려갔다
+    다시 지도로 올라오지 않아도 되게.
+  */
+  const color = pin.isBooth
+    ? congestion?.level
+      ? CONGESTION_COLOR[congestion.level]
+      : "#fd7e14"
+    : "#52525b";
   const marker = document.createElement("span");
   marker.style.cssText = `display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:9999px;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);color:white;`;
   marker.appendChild(createPinIcon(pin.nodeType, 12));
@@ -42,11 +72,23 @@ function buildPinElement(pin: RoadmapPin): HTMLButtonElement {
   return button;
 }
 
-function buildLabelElement(pin: RoadmapPin): HTMLDivElement {
+function buildLabelElement(pin: RoadmapPin, congestion?: BoothCongestionHint): HTMLDivElement {
   const label = document.createElement("div");
   label.style.cssText =
     "margin-bottom:8px;max-width:200px;border-radius:8px;background:white;padding:6px 10px;box-shadow:0 2px 8px rgba(0,0,0,0.18);font-size:12px;line-height:1.4;color:#09090b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-  label.textContent = pin.zoneName ? `${pin.zoneName} · ${pin.name}` : pin.name;
+  const title = document.createElement("span");
+  title.textContent = pin.zoneName ? `${pin.zoneName} · ${pin.name}` : pin.name;
+  label.appendChild(title);
+
+  if (congestion?.level) {
+    const detail = document.createElement("span");
+    detail.style.cssText = `display:block;margin-top:2px;color:${CONGESTION_COLOR[congestion.level]};`;
+    detail.textContent =
+      congestion.waitMinutes === null
+        ? CONGESTION_LABEL[congestion.level]
+        : `${CONGESTION_LABEL[congestion.level]} · 약 ${congestion.waitMinutes}분`;
+    label.appendChild(detail);
+  }
   return label;
 }
 
@@ -60,28 +102,44 @@ function buildLabelElement(pin: RoadmapPin): HTMLDivElement {
 export function RoadmapMapView({
   roadmap,
   height = 320,
+  congestionByBoothName,
+  selectedNodeId = null,
+  onSelectNode,
 }: {
   roadmap: RoadmapResponse;
   height?: number;
+  /** 부스 이름 → 혼잡도. 없으면 예전처럼 이름만 보여준다. */
+  congestionByBoothName?: Map<string, BoothCongestionHint>;
+  /*
+    지금 고른 부스. 지도와 아래 목록이 같은 값을 보게 바깥에서 들고 있는다 —
+    지도가 따로 상태를 쥐면 목록에서 고른 부스로 지도가 따라가지 못한다.
+  */
+  selectedNodeId?: string | null;
+  onSelectNode?: (nodeId: string | null) => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<KakaoMapInstance | null>(null);
   const [map, setMap] = useState<KakaoMapInstance | null>(null);
   const [sdkError, setSdkError] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState(false);
-  const [selected, setSelected] = useState<RoadmapPin | null>(null);
 
   const boundary = useMemo(() => readBoundary(roadmap.presentation), [roadmap.presentation]);
   const overlay = useMemo(() => readOverlay(roadmap.presentation), [roadmap.presentation]);
   const pins = useMemo(() => collectRoadmapPins(roadmap), [roadmap]);
+  const areas = useMemo(() => collectRoadmapAreas(roadmap), [roadmap]);
+  const [level, setLevel] = useState(INITIAL_LEVEL);
+  const selected = useMemo(
+    () => pins.find((pin) => pin.id === selectedNodeId) ?? null,
+    [pins, selectedNodeId],
+  );
 
   // 처음 화면에 담을 범위. 경계 > 팜플렛 귀퉁이 > 부스 점 순으로 우선한다.
   const fitPoints = useMemo<LatLngPoint[]>(() => {
     if (boundary) return boundary;
     if (overlay)
       return [overlay.topLeft, overlay.topRight, overlay.bottomRight, overlay.bottomLeft];
-    return pins.map((pin) => pin.point);
-  }, [boundary, overlay, pins]);
+    return [...areas.flatMap((area) => area.points), ...pins.map((pin) => pin.point)];
+  }, [boundary, overlay, pins, areas]);
 
   const center = useMemo<LatLngPoint | null>(() => {
     if (fitPoints.length === 0) return null;
@@ -104,6 +162,8 @@ export function RoadmapMapView({
           center: new window.kakao.maps.LatLng(center.lat, center.lng),
           level: INITIAL_LEVEL,
         });
+        created.setMinLevel(MIN_LEVEL);
+        created.setMaxLevel(MAX_LEVEL);
         mapRef.current = created;
         setMap(created);
       })
@@ -142,6 +202,50 @@ export function RoadmapMapView({
     return () => polygon.setMap(null);
   }, [map, boundary]);
 
+  /*
+    구역 도형. 관리자가 묶어 둔 구역을 방문객도 볼 수 있어야 «로스터리 마켓존이 어디»가
+    성립한다. 예전에는 이 도형이 시설 칩 줄에 이름만 흘러 들어가 있었다.
+  */
+  useEffect(() => {
+    if (!map || areas.length === 0) return;
+    const drawn = areas.map((area) => {
+      const polygon = new window.kakao.maps.Polygon({
+        path: area.points.map((point) => new window.kakao.maps.LatLng(point.lat, point.lng)),
+        strokeWeight: 2,
+        strokeColor: "#fd7e14",
+        strokeOpacity: 0.7,
+        strokeStyle: "shortdash",
+        fillColor: "#fd7e14",
+        fillOpacity: 0.08,
+      });
+      polygon.setMap(map);
+      return polygon;
+    });
+    return () => drawn.forEach((polygon) => polygon.setMap(null));
+  }, [map, areas]);
+
+  // 구역 이름표. 도형만 칠해 두면 어느 구역인지 알 수 없다.
+  useEffect(() => {
+    if (!map || areas.length === 0) return;
+    const overlays: KakaoCustomOverlayInstance[] = [];
+    areas.forEach((area) => {
+      if (!area.name) return;
+      const center = centerOf(area.points);
+      const label = document.createElement("span");
+      label.style.cssText =
+        "display:block;border-radius:9999px;background:rgba(253,126,20,0.9);padding:2px 8px;font-size:11px;line-height:1.4;color:white;white-space:nowrap;";
+      label.textContent = area.name;
+      const overlay = new window.kakao.maps.CustomOverlay({
+        position: new window.kakao.maps.LatLng(center.lat, center.lng),
+        content: label,
+        zIndex: 5,
+      });
+      overlay.setMap(map);
+      overlays.push(overlay);
+    });
+    return () => overlays.forEach((item) => item.setMap(null));
+  }, [map, areas]);
+
   // 팜플렛 이미지.
   useEffect(() => {
     if (!map || !overlay || imageFailed) return;
@@ -163,9 +267,9 @@ export function RoadmapMapView({
     const overlays: KakaoCustomOverlayInstance[] = [];
 
     pins.forEach((pin) => {
-      const element = buildPinElement(pin);
+      const element = buildPinElement(pin, congestionByBoothName?.get(pin.name));
       element.addEventListener("click", () => {
-        setSelected((current) => (current?.id === pin.id ? null : pin));
+        onSelectNode?.(pin.id === selectedNodeId ? null : pin.id);
       });
       const pinOverlay = new window.kakao.maps.CustomOverlay({
         position: new window.kakao.maps.LatLng(pin.point.lat, pin.point.lng),
@@ -179,19 +283,28 @@ export function RoadmapMapView({
     });
 
     return () => overlays.forEach((item) => item.setMap(null));
-  }, [map, pins]);
+  }, [map, pins, congestionByBoothName, selectedNodeId, onSelectNode]);
 
   // 선택한 점 위에 뜨는 이름표.
   useEffect(() => {
     if (!map || !selected) return;
     const labelOverlay = new window.kakao.maps.CustomOverlay({
       position: new window.kakao.maps.LatLng(selected.point.lat, selected.point.lng),
-      content: buildLabelElement(selected),
+      content: buildLabelElement(selected, congestionByBoothName?.get(selected.name)),
       yAnchor: 1,
       zIndex: 20,
     });
     labelOverlay.setMap(map);
     return () => labelOverlay.setMap(null);
+  }, [map, selected, congestionByBoothName]);
+
+  /*
+    고른 부스로 지도를 옮긴다. 아래 목록에서 골랐을 때 «그 부스가 어디인지» 보이지 않던
+    것을 잇는 부분이다.
+  */
+  useEffect(() => {
+    if (!map || !selected) return;
+    map.panTo(new window.kakao.maps.LatLng(selected.point.lat, selected.point.lng));
   }, [map, selected]);
 
   if (sdkError) {
@@ -212,6 +325,38 @@ export function RoadmapMapView({
         style={{ height }}
       >
         <div ref={containerRef} className="size-full" />
+        {/* 손으로 벌리기 어려운 상황(마우스 휠은 페이지가 스크롤된다)을 위한 확대/축소. */}
+        {map ? (
+          <div className="absolute top-2 right-2 z-10 flex flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+            <button
+              type="button"
+              aria-label="지도 확대"
+              disabled={level <= MIN_LEVEL}
+              className="body-small size-8 text-zinc-700 disabled:text-zinc-300"
+              onClick={() => {
+                const next = Math.max(MIN_LEVEL, map.getLevel() - 1);
+                map.setLevel(next);
+                setLevel(next);
+              }}
+            >
+              +
+            </button>
+            <span className="h-px bg-zinc-200" />
+            <button
+              type="button"
+              aria-label="지도 축소"
+              disabled={level >= MAX_LEVEL}
+              className="body-small size-8 text-zinc-700 disabled:text-zinc-300"
+              onClick={() => {
+                const next = Math.min(MAX_LEVEL, map.getLevel() + 1);
+                map.setLevel(next);
+                setLevel(next);
+              }}
+            >
+              −
+            </button>
+          </div>
+        ) : null}
       </div>
       {imageFailed ? (
         <p className="body-caption text-zinc-400">
@@ -220,4 +365,12 @@ export function RoadmapMapView({
       ) : null}
     </div>
   );
+}
+
+function centerOf(points: LatLngPoint[]): LatLngPoint {
+  const sum = points.reduce(
+    (acc, point) => ({ lat: acc.lat + point.lat, lng: acc.lng + point.lng }),
+    { lat: 0, lng: 0 },
+  );
+  return { lat: sum.lat / points.length, lng: sum.lng / points.length };
 }

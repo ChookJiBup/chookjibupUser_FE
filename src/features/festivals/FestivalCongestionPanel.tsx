@@ -46,9 +46,15 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
       {query.data ? (
         <div className="flex flex-col gap-3 py-4">
           {query.data.averageWaitMinutes !== null ? (
+            /*
+              activeQueueCount는 «대기열이 열려 있는 부스 수»다. «혼잡한 부스»로 적어 두면
+              8곳 중 실제 혼잡은 4곳뿐인데도 여덟 곳이 혼잡한 것처럼 읽힌다.
+            */
             <p className="body-small text-zinc-500">
-              평균 대기 {query.data.averageWaitMinutes}분 · 혼잡한 부스{" "}
-              {query.data.activeQueueCount ?? 0}곳
+              평균 대기 {query.data.averageWaitMinutes}분
+              {query.data.activeQueueCount
+                ? ` · 운영 중인 대기열 ${query.data.activeQueueCount}곳`
+                : ""}
             </p>
           ) : null}
 
