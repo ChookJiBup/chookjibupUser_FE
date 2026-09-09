@@ -63,7 +63,12 @@ export interface KakaoLatLngBounds {
 
 export interface KakaoMapInstance {
   setCenter: (latLng: KakaoLatLng) => void;
+  /** 부드럽게 이동. 목록에서 고른 부스로 지도를 옮길 때 쓴다. */
+  panTo: (latLng: KakaoLatLng) => void;
   setLevel: (level: number) => void;
+  getLevel: () => number;
+  setMinLevel: (level: number) => void;
+  setMaxLevel: (level: number) => void;
   relayout: () => void;
   /** 지도가 붙어 있는 DOM 엘리먼트. 크기 변화를 감시할 때 쓴다. */
   getNode: () => HTMLElement;

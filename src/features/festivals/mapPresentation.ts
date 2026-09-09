@@ -98,6 +98,20 @@ export function readOverlay(
   };
 }
 
+/** `{"points":[{lat,lng}, ...]}` 꼴 도형을 읽는다. 점이 하나라도 깨졌으면 통째로 버린다. */
+function readPolygonPoints(value: unknown): LatLngPoint[] | null {
+  if (!value || typeof value !== "object") return null;
+  const raw = (value as Record<string, unknown>).points;
+  if (!Array.isArray(raw) || raw.length < 3) return null;
+  const points: LatLngPoint[] = [];
+  for (const item of raw) {
+    const point = readPoint(item);
+    if (!point) return null;
+    points.push(point);
+  }
+  return points;
+}
+
 /** 이름이 없는 노드에 대신 보여줄 라벨. */
 const NODE_TYPE_LABEL: Record<RoadmapNodeType, string> = {
   BOOTH: "부스",
@@ -168,4 +182,38 @@ export function collectRoadmapPins(roadmap: RoadmapResponse): RoadmapPin[] {
   });
 
   return pins;
+}
+
+/** 지도 위에 칠하는 구역 하나. */
+export interface RoadmapArea {
+  id: string;
+  name: string | null;
+  points: LatLngPoint[];
+}
+
+/**
+ * 관리자가 그려 둔 구역 도형.
+ *
+ * <p>구역은 노드로 저장되므로 otherNodes에 섞여 온다. 예전에는 이걸 좌표 노드로만
+ * 취급해 지도에는 안 그리고 시설 칩 줄에 이름만 흘려보냈다 — 방문객 화면에
+ * 「로스터리 마켓존」이 화장실·입구와 나란히 붙어 있던 이유다.</p>
+ */
+export function collectRoadmapAreas(roadmap: RoadmapResponse): RoadmapArea[] {
+  const areas: RoadmapArea[] = [];
+  roadmap.otherNodes.forEach((node) => {
+    const points = readAreaPoints(node);
+    if (!points) return;
+    areas.push({ id: node.publicId, name: node.name, points });
+  });
+  return areas;
+}
+
+/** 좌표 한 점이 아니라 면으로 그려지는 노드인지. 시설 칩에서 걸러내는 데도 쓴다. */
+export function readAreaPoints(node: RoadmapNodeResponse): LatLngPoint[] | null {
+  if (!node.geometryData) return null;
+  try {
+    return readPolygonPoints(JSON.parse(node.geometryData));
+  } catch {
+    return null;
+  }
 }

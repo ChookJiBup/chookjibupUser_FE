@@ -32,6 +32,8 @@ const TABS: MapFilterTab[] = ["ALL", "ONGOING", "UPCOMING"];
 
 /** 전체 탭에서 지도에 찍을 상태들. 종료된 축제는 지도에 올리지 않는다. */
 const MAP_ACTIVE_STATUSES: Exclude<FestivalProgressStatus, "COMPLETED">[] = ["ONGOING", "UPCOMING"];
+/** 백엔드가 한 번에 내주는 최대치. 이보다 크게 요청하면 400이 난다. */
+const MAP_PAGE_SIZE = 100;
 
 function daysUntil(startDate: string | null): number | null {
   if (!startDate) return null;
@@ -86,15 +88,29 @@ export function MapPanel() {
 
   const query = useQuery({
     queryKey: ["festivals-map", tab],
-    // 지도는 페이지네이션 없이 한 번에 다 찍는다 — 백엔드 MAX_SIZE(100)에 맞춰 최대치로 요청한다.
-    // status를 안 주면 종료된 축제까지 시작일 오름차순으로 섞여 와서 첫 100개가 전부 옛날
-    // 축제가 된다. 백엔드 status는 값을 하나만 받으므로 전체 탭은 두 상태를 따로 부른다.
+    /*
+      지도는 페이지네이션 없이 한 번에 다 찍는다. 백엔드 MAX_SIZE가 100이라 한 번에 다 받을
+      수 없어 totalPages만큼 이어서 부른다 — 진행예정만 해도 230건이 넘어 100건에서 끊으면
+      나머지 축제가 지도에서 통째로 사라진다.
+
+      status를 안 주면 종료된 축제까지 시작일 오름차순으로 섞여 와서 첫 장이 전부 옛날
+      축제가 된다. 백엔드 status는 값을 하나만 받으므로 전체 탭은 두 상태를 따로 부른다.
+    */
     queryFn: async () => {
       const statuses = tab === "ALL" ? MAP_ACTIVE_STATUSES : [tab];
-      const pages = await Promise.all(
-        statuses.map((status) => getFestivals({ page: 0, size: 100, status })),
+      const perStatus = await Promise.all(
+        statuses.map(async (status) => {
+          const first = await getFestivals({ page: 0, size: MAP_PAGE_SIZE, status });
+          if (first.totalPages <= 1) return first.items;
+          const rest = await Promise.all(
+            Array.from({ length: first.totalPages - 1 }, (_, index) =>
+              getFestivals({ page: index + 1, size: MAP_PAGE_SIZE, status }),
+            ),
+          );
+          return [...first.items, ...rest.flatMap((page) => page.items)];
+        }),
       );
-      return pages.flatMap((page) => page.items);
+      return perStatus.flat();
     },
   });
 

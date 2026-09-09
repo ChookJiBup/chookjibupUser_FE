@@ -1,14 +1,16 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Cross2Icon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
+import { ChevronDownIcon, Cross2Icon, MagnifyingGlassIcon } from "@radix-ui/react-icons";
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { getFestivals } from "@/features/festivals/api";
 import { FestivalCard } from "@/features/festivals/FestivalCard";
 
 const RECENT_SEARCH_KEY = "chookjibup:recent-festival-searches";
 const MAX_RECENT = 8;
+/** 검색 결과 한 장 크기. 백엔드 MAX_SIZE(100) 안쪽으로 잡는다. */
+const SEARCH_PAGE_SIZE = 20;
 
 function loadRecentSearches(): string[] {
   if (typeof window === "undefined") return [];
@@ -44,9 +46,17 @@ export function SearchPanel() {
     setRecentSearches(loadRecentSearches());
   }, []);
 
-  const query = useQuery({
+  /*
+    한 번에 50건만 받고 끝내던 시절에는 「검색결과 799」라고 적어 놓고 50개만 보여 줘서
+    나머지를 볼 방법이 아예 없었다. 한 장씩 이어 받는다.
+  */
+  const query = useInfiniteQuery({
     queryKey: ["festival-search", submittedKeyword],
-    queryFn: () => getFestivals({ page: 0, size: 50, name: submittedKeyword }),
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      getFestivals({ page: pageParam, size: SEARCH_PAGE_SIZE, name: submittedKeyword }),
+    getNextPageParam: (lastPage) =>
+      lastPage.page + 1 < lastPage.totalPages ? lastPage.page + 1 : undefined,
     enabled: submittedKeyword.trim().length > 0,
   });
 
@@ -166,7 +176,7 @@ function RecentSearches({
 function SearchResults({
   query,
 }: {
-  query: ReturnType<typeof useQuery<Awaited<ReturnType<typeof getFestivals>>>>;
+  query: ReturnType<typeof useInfiniteQuery<Awaited<ReturnType<typeof getFestivals>>>>;
 }) {
   if (query.isLoading) {
     return <p className="body-regular text-zinc-500">검색하는 중...</p>;
@@ -180,8 +190,9 @@ function SearchResults({
     return <p className="body-small text-error">{getApiErrorMessage(query.error)}</p>;
   }
 
-  const data = query.data;
-  if (!data || data.items.length === 0) {
+  const pages = query.data?.pages ?? [];
+  const items = pages.flatMap((page) => page.items);
+  if (items.length === 0) {
     return <p className="body-regular text-zinc-400">검색 결과가 없어요.</p>;
   }
 
@@ -189,13 +200,26 @@ function SearchResults({
     <div className="flex flex-col">
       <div className="flex items-center gap-1 py-3">
         <p className="body-regular-bold text-zinc-950">검색결과</p>
-        <p className="body-regular-bold text-secondary-600">{data.totalElements}</p>
+        <p className="body-regular-bold text-secondary-600">{pages[0]?.totalElements ?? 0}</p>
       </div>
       <div className="flex flex-col">
-        {data.items.map((festival) => (
+        {items.map((festival) => (
           <FestivalCard key={festival.id} festival={festival} />
         ))}
       </div>
+      {query.hasNextPage ? (
+        <div className="mt-2 flex justify-center pb-4">
+          <button
+            type="button"
+            onClick={() => query.fetchNextPage()}
+            disabled={query.isFetchingNextPage}
+            className="body-small flex h-[37px] items-center gap-1 rounded-full bg-zinc-100 px-4 disabled:opacity-50"
+          >
+            {query.isFetchingNextPage ? "불러오는 중..." : "더보기"}
+            <ChevronDownIcon aria-hidden className="size-4 shrink-0 text-zinc-800" />
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

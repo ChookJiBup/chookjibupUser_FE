@@ -38,3 +38,16 @@ export function formatServerUpdatedAt(iso: string | null | undefined): string | 
 
   return sameDay ? time : `${date.getMonth() + 1}월 ${date.getDate()}일 ${time}`;
 }
+
+/**
+ * 서버가 내려주는 `09:00:00` 같은 시각에서 초를 떼어 낸다.
+ *
+ * <p>운영시간은 분 단위로만 정하는데 초까지 그대로 보여 주면 「09:00:00~18:00:00」처럼
+ * 읽기 힘든 줄이 된다.</p>
+ */
+export function formatClockTime(time: string | null | undefined): string | null {
+  if (!time) return null;
+  const match = /^(\d{1,2}):(\d{2})/.exec(time.trim());
+  if (!match) return time;
+  return `${match[1].padStart(2, "0")}:${match[2]}`;
+}
