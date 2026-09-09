@@ -8,6 +8,7 @@ import {
   type KakaoMapInstance,
 } from "@/lib/map/kakaoMaps";
 import { createPamphletOverlay } from "./PamphletOverlay";
+import { createPinIcon } from "./pinIcons";
 import {
   collectRoadmapPins,
   readBoundary,
@@ -28,11 +29,15 @@ function buildPinElement(pin: RoadmapPin): HTMLButtonElement {
   button.setAttribute("aria-label", pin.name);
   button.style.cssText = "display:block;padding:0;border:0;background:transparent;cursor:pointer;";
 
-  const dot = document.createElement("span");
-  // 부스는 포인트 색, 화장실·입구 같은 시설은 회색으로 구분한다.
+  /*
+    전부 같은 동그라미로 찍었더니 부스와 화장실·입구가 지도에서 구분되지 않았다.
+    관리자 부스맵과 같은 유형 아이콘을 넣고, 부스는 포인트 색·시설은 회색으로 둔다.
+  */
   const color = pin.isBooth ? "#fd7e14" : "#52525b";
-  dot.style.cssText = `display:block;width:12px;height:12px;border-radius:9999px;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);`;
-  button.appendChild(dot);
+  const marker = document.createElement("span");
+  marker.style.cssText = `display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:9999px;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);color:white;`;
+  marker.appendChild(createPinIcon(pin.nodeType, 12));
+  button.appendChild(marker);
 
   return button;
 }
