@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { StarRating } from "@/components/ui/StarRating";
 import { getReviews } from "./api";
+import { ReviewListItem } from "./ReviewWritePanel";
 
 /**
  * 축제 상세 페이지의 "리뷰" 탭 내용. 리뷰 작성은 여기서 하지 않는다 —
@@ -24,7 +25,7 @@ export function ReviewsPanel({ festivalId }: { festivalId: string }) {
       : 0;
 
   return (
-    <section className="flex flex-col gap-3 py-4">
+    <section className="flex flex-col gap-3 px-5 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <p className="body-regular-bold text-zinc-950">{average.toFixed(1)}</p>
@@ -50,15 +51,7 @@ export function ReviewsPanel({ festivalId }: { festivalId: string }) {
 
       <ul className="flex flex-col divide-y divide-zinc-100">
         {data?.items.map((review) => (
-          <li key={review.reviewId} className="flex flex-col gap-1 py-3">
-            <div className="flex items-center justify-between">
-              <StarRating value={review.rating} size={12} />
-              <time className="body-caption text-zinc-400" dateTime={review.createdAt}>
-                {new Date(review.createdAt).toLocaleDateString("ko-KR")}
-              </time>
-            </div>
-            <p className="body-small text-zinc-700">{review.content}</p>
-          </li>
+          <ReviewListItem key={review.reviewId} review={review} />
         ))}
       </ul>
     </section>
