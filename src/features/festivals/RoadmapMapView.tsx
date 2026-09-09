@@ -32,11 +32,23 @@ export interface BoothCongestionHint {
   waitMinutes: number | null;
 }
 
+/*
+  혼잡도 색은 목록·랭킹 배지(bg-secondary-600 / bg-point-600 / bg-error)와 같은 값이어야
+  한다 — 여기 hex를 따로 적어 두었더니 같은 화면에서 "여유"가 지도에선 초록, 목록에선
+  파랑으로 보였다. 카카오맵 핀은 리액트 밖에서 만드는 DOM이라 Tailwind 클래스를 붙일 수
+  없으므로, 토큰의 실제 색값이 있는 globals.css :root 변수를 인라인 스타일에서 그대로
+  읽는다. 색값을 이 파일에 다시 적지 않는 것이 요점이다 — 그래야 토큰이 바뀌어도 지도와
+  목록이 다시 어긋나지 않는다.
+*/
 const CONGESTION_COLOR: Record<BoothCongestionLevel, string> = {
-  LOW: "#16a34a",
-  MEDIUM: "#fd7e14",
-  HIGH: "#dc2626",
+  LOW: "var(--secondary-600)",
+  MEDIUM: "var(--point-600)",
+  HIGH: "var(--red-500)",
 };
+
+/** 혼잡도와 무관하게 "부스"임을 나타내는 색. 시설(화장실·입구 등)은 회색으로 둔다. */
+const BOOTH_COLOR = "var(--point-600)";
+const FACILITY_COLOR = "#52525b";
 
 const CONGESTION_LABEL: Record<BoothCongestionLevel, string> = {
   LOW: "여유",
@@ -56,16 +68,25 @@ function buildPinElement(pin: RoadmapPin, congestion?: BoothCongestionHint): HTM
     관리자 부스맵과 같은 유형 아이콘을 넣고, 부스는 포인트 색·시설은 회색으로 둔다.
   */
   /*
-    혼잡도가 들어온 부스는 그 색으로 찍는다 — 대기시간을 보려고 목록으로 내려갔다
+    혼잡도가 들어온 부스는 그 색으로 채운다 — 대기시간을 보려고 목록으로 내려갔다
     다시 지도로 올라오지 않아도 되게.
+
+    혼잡도가 아직 없는 부스는 채우지 않고 부스 색 테두리만 남긴다("채움 = 등급 있음,
+    비움 = 아직 없음"). 예전에는 기본색이 MEDIUM과 같은 주황이라, 혼잡도 데이터가 아예
+    없는 축제가 지도에서는 "모든 부스가 보통"으로 읽혔다. 색을 하나 더 만들지 않은 것은
+    남는 색(회색)이 시설 핀과 겹치는 데다, 등급이 없더라도 부스라는 사실은 계속 보여야
+    하기 때문이다.
   */
-  const color = pin.isBooth
-    ? congestion?.level
-      ? CONGESTION_COLOR[congestion.level]
-      : "#fd7e14"
-    : "#52525b";
   const marker = document.createElement("span");
-  marker.style.cssText = `display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:9999px;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);color:white;`;
+  const shape =
+    "display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:9999px;box-shadow:0 1px 3px rgba(0,0,0,0.3);";
+  if (!pin.isBooth) {
+    marker.style.cssText = `${shape}background:${FACILITY_COLOR};border:2px solid white;color:white;`;
+  } else if (congestion?.level) {
+    marker.style.cssText = `${shape}background:${CONGESTION_COLOR[congestion.level]};border:2px solid white;color:white;`;
+  } else {
+    marker.style.cssText = `${shape}background:white;border:2px solid ${BOOTH_COLOR};color:${BOOTH_COLOR};`;
+  }
   marker.appendChild(createPinIcon(pin.nodeType, 12));
   button.appendChild(marker);
 
@@ -87,6 +108,12 @@ function buildLabelElement(pin: RoadmapPin, congestion?: BoothCongestionHint): H
       congestion.waitMinutes === null
         ? CONGESTION_LABEL[congestion.level]
         : `${CONGESTION_LABEL[congestion.level]} · 약 ${congestion.waitMinutes}분`;
+    label.appendChild(detail);
+  } else if (pin.isBooth) {
+    // 비어 있는 핀을 눌렀을 때 "왜 색이 없는지"를 말로도 알려 준다.
+    const detail = document.createElement("span");
+    detail.style.cssText = "display:block;margin-top:2px;color:#71717b;";
+    detail.textContent = "혼잡도 정보 없음";
     label.appendChild(detail);
   }
   return label;
