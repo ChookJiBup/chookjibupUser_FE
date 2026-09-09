@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { CheckCircledIcon } from "@radix-ui/react-icons";
+import { parseServerDateTime } from "@/lib/serverTime";
 import { getApiErrorMessage, isAuthExpiredError } from "@/lib/api/httpError";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
 import { StarRating } from "@/components/ui/StarRating";
@@ -208,7 +209,9 @@ export function ReviewListItem({ review }: { review: ReviewResponse }) {
           ) : null}
         </div>
         <time className="body-caption text-zinc-400" dateTime={review.createdAt}>
-          {new Date(review.createdAt).toLocaleDateString("ko-KR")}
+          {(parseServerDateTime(review.createdAt) ?? new Date(review.createdAt)).toLocaleDateString(
+            "ko-KR",
+          )}
         </time>
       </div>
       <StarRating value={review.rating} size={12} />

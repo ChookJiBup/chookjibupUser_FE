@@ -25,6 +25,7 @@ import { ReviewsPanel } from "@/features/reviews/ReviewsPanel";
 import { LocationMiniMap } from "@/components/ui/LocationMiniMap";
 import { getFestivalCongestion, getFestivalDetail } from "./api";
 import { FestivalStats, FestivalThumbnail, StatusBadge } from "./FestivalCard";
+import { formatServerUpdatedAt } from "@/lib/serverTime";
 import { collectRoadmapPins, readBoundary, readOverlay } from "./mapPresentation";
 import { RoadmapMapView } from "./RoadmapMapView";
 import type {
@@ -218,7 +219,9 @@ function CongestionSummary({
           onClick={() => query.refetch()}
           className="body-caption flex items-center gap-1 text-zinc-400"
         >
-          {congestion.updatedAt ? formatUpdatedAt(congestion.updatedAt) + " 기준" : ""}
+          {formatServerUpdatedAt(congestion.updatedAt)
+            ? `${formatServerUpdatedAt(congestion.updatedAt)} 기준`
+            : ""}
           <ReloadIcon className="size-3" />
         </button>
       </div>
@@ -284,15 +287,6 @@ function pickOverallLevel(booths: BoothCongestionResponse[]): BoothCongestionLev
   if (levels.includes("MEDIUM")) return "MEDIUM";
   if (levels.includes("LOW")) return "LOW";
   return null;
-}
-
-function formatUpdatedAt(iso: string) {
-  const date = new Date(iso);
-  const hours = date.getHours();
-  const period = hours < 12 ? "오전" : "오후";
-  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${period} ${displayHour}:${minutes}`;
 }
 
 function BoothCongestionRow({ rank, booth }: { rank: number; booth: BoothCongestionResponse }) {

@@ -286,9 +286,15 @@ function FestivalMarkerCard({
         <FestivalStats wishlistCount={wishlistCount} reviewCount={festival.reviewCount} />
       </div>
       {congestion?.averageWaitMinutes !== undefined && congestion?.averageWaitMinutes !== null ? (
+        /*
+          «지금»이라고 단언했지만 갱신이 며칠 전인 축제도 있었다. 또 activeQueueCount는
+          «대기열이 열려 있는 부스 수»인데 «혼잡한 부스»로 적어 실제와 어긋났다.
+        */
         <p className="body-caption mt-1 text-zinc-500">
-          지금 평균 대기 {congestion.averageWaitMinutes}분
-          {congestion.activeQueueCount ? ` · 혼잡한 부스 ${congestion.activeQueueCount}곳` : ""}
+          평균 대기 {congestion.averageWaitMinutes}분
+          {congestion.activeQueueCount
+            ? ` · 운영 중인 대기열 ${congestion.activeQueueCount}곳`
+            : ""}
         </p>
       ) : null}
 
