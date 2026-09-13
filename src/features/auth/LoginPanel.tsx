@@ -101,9 +101,9 @@ export function LoginPanel() {
             회원가입
           </Link>
           <span className="h-3 w-px bg-zinc-300" />
-          <button type="button" className="body-small text-zinc-700">
+          <Link href="/find-account" className="body-small text-zinc-700">
             계정 찾기
-          </button>
+          </Link>
         </div>
       </section>
     </div>
