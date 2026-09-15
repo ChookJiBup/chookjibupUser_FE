@@ -12,11 +12,18 @@ import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore"
 import { FestivalStats, StatusBadge, formatDateRange } from "@/features/festivals/FestivalCard";
 import { getFestivalCongestion, getFestivals } from "@/features/festivals/api";
 import type { FestivalProgressStatus, UserFestivalResponse } from "@/features/festivals/types";
-import { type KakaoMapInstance, loadKakaoMapsSdk } from "@/lib/map/kakaoMaps";
+import type { Map as LeafletMap } from "leaflet";
+import {
+  createBaseMap,
+  createHtmlMarker,
+  loadLeaflet,
+  type LeafletModule,
+} from "@/lib/map/leafletMap";
 
 // 대한민국 대략 중심 좌표. 좌표가 있는 축제가 없을 때 기본 화면 위치로 쓴다.
 const DEFAULT_CENTER = { lat: 36.5, lng: 127.8 };
-const DEFAULT_LEVEL = 13; // 카카오맵은 레벨이 클수록 축소(줌아웃)된다.
+// Leaflet 줌은 클수록 확대. 카카오 레벨 13에 해당한다(zoom ≈ 20 - 카카오 level).
+const DEFAULT_ZOOM = 7;
 
 type MapFilterTab = "ALL" | Exclude<FestivalProgressStatus, "COMPLETED">;
 
@@ -65,8 +72,8 @@ function buildMarkerElement(festival: UserFestivalResponse): HTMLDivElement {
 }
 
 /**
- * HOME02(축제지도). 카카오맵 JS SDK를 쓴다 — NEXT_PUBLIC_KAKAO_MAP_KEY 환경변수가
- * 필요하다(카카오 개발자 콘솔 > 내 애플리케이션 > 플랫폼 키 > JavaScript 키).
+ * HOME02(축제지도). Leaflet에 상호명 없는 바탕 타일을 깐다 — 타일 주소는
+ * NEXT_PUBLIC_MAP_TILE_URL로 바꿀 수 있다(src/lib/map/leafletMap.ts 참고).
  *
  * [알려진 제약]
  * - 혼잡도에 따른 마커 색상 구분은 없다 — 관리자 백엔드에 실시간 혼잡도 데이터 자체가 없다.
@@ -79,8 +86,12 @@ export function MapPanel() {
   const [selected, setSelected] = useState<UserFestivalResponse | null>(null);
   const [sdkError, setSdkError] = useState<string | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<KakaoMapInstance | null>(null);
-  const overlaysRef = useRef<{ setMap: (map: KakaoMapInstance | null) => void }[]>([]);
+  /*
+    지도는 ref가 아니라 state로 들고 있어야 마커 effect가 "지도가 준비된 뒤"에도 다시 돈다.
+    ref만 쓰면 목록이 캐시에서 먼저 나오는 재진입 때 지도보다 마커 effect가 먼저 돌고 끝나서
+    마커가 하나도 안 찍힌다.
+  */
+  const [leaflet, setLeaflet] = useState<{ L: LeafletModule; map: LeafletMap } | null>(null);
 
   const hasHydrated = useUserAuthHasHydrated();
   const session = useUserAuthStore((state) => state.session);
@@ -130,14 +141,16 @@ export function MapPanel() {
   useEffect(() => {
     let cancelled = false;
 
-    loadKakaoMapsSdk()
-      .then(() => {
-        if (cancelled || !mapContainerRef.current || mapRef.current) return;
-        const center = new window.kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng);
-        mapRef.current = new window.kakao.maps.Map(mapContainerRef.current, {
-          center,
-          level: DEFAULT_LEVEL,
+    let created: LeafletMap | null = null;
+
+    loadLeaflet()
+      .then((L) => {
+        if (cancelled || !mapContainerRef.current) return;
+        created = createBaseMap(L, mapContainerRef.current, {
+          center: DEFAULT_CENTER,
+          zoom: DEFAULT_ZOOM,
         });
+        setLeaflet({ L, map: created });
       })
       .catch((err: Error) => {
         if (!cancelled) setSdkError(err.message);
@@ -145,33 +158,29 @@ export function MapPanel() {
 
     return () => {
       cancelled = true;
+      // 같은 컨테이너에 지도를 다시 만들 수 있도록(개발 모드 이중 실행 포함) 떠날 때 치운다.
+      created?.remove();
     };
   }, []);
 
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
+    if (!leaflet) return;
+    const { L, map } = leaflet;
 
-    overlaysRef.current.forEach((overlay) => overlay.setMap(null));
-    overlaysRef.current = [];
-
-    festivalsWithCoords.forEach((festival) => {
-      const position = new window.kakao.maps.LatLng(
-        festival.latitude as number,
-        festival.longitude as number,
-      );
-      const element = buildMarkerElement(festival);
-      element.addEventListener("click", () => setSelected(festival));
-
-      const overlay = new window.kakao.maps.CustomOverlay({
-        position,
-        content: element,
+    const markers = festivalsWithCoords.map((festival) => {
+      const marker = createHtmlMarker(L, {
+        position: { lat: festival.latitude as number, lng: festival.longitude as number },
+        content: buildMarkerElement(festival),
         yAnchor: 0.5,
+        interactive: true,
       });
-      overlay.setMap(map);
-      overlaysRef.current.push(overlay);
+      // 마커 click은 지도를 끌다 놓았을 때는 발생하지 않는다(Leaflet이 걸러 줌).
+      marker.on("click", () => setSelected(festival));
+      return marker.addTo(map);
     });
-  }, [festivalsWithCoords]);
+
+    return () => markers.forEach((marker) => marker.remove());
+  }, [leaflet, festivalsWithCoords]);
 
   return (
     <div className="relative -mx-5 -my-4 flex h-[calc(100dvh-var(--app-header-height))] flex-col">
@@ -220,7 +229,8 @@ export function MapPanel() {
       ) : null}
       {sdkError ? <p className="body-small text-error">{sdkError}</p> : null}
 
-      <div ref={mapContainerRef} className="min-h-0 flex-1" />
+      {/* isolate: Leaflet pane의 z-index가 "리스트 보기"·선택 카드 위로 올라오지 않게 가둔다. */}
+      <div ref={mapContainerRef} className="isolate min-h-0 flex-1" />
 
       <Link
         href="/"
