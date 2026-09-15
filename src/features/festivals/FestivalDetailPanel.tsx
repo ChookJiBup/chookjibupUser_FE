@@ -430,7 +430,7 @@ function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.Re
  * 별도 목록으로 보여준다. 혼잡도는 여기가 아니라 상세 페이지 헤더의
  * "실시간 축제현황"에서 보여준다(진행중일 때만).
  *
- * 관리자가 지도 위에 부지 경계나 팜플렛을 맞춰 뒀으면(presentation) 그 지도를
+ * 관리자가 카카오맵 위에 부지 경계나 팜플렛을 맞춰 뒀으면(presentation) 그 지도를
  * 그대로 보여주고, 아직 안 맞췄으면 지금까지처럼 배치도 이미지만 보여준다.
  */
 function RoadmapTab({
