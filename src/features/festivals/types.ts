@@ -79,7 +79,7 @@ export interface RoadmapLatLng {
 }
 
 /**
- * 관리자가 카카오맵에 맞춰 둔 팜플렛 오버레이.
+ * 관리자가 지도에 맞춰 둔 팜플렛 오버레이.
  *
  * 네 귀퉁이는 서버가 앵커(중심·폭·회전)에서 계산해 내려주므로 프론트가 좌표 변환을
  * 다시 하지 않는다. 남서/북동 bounds로 바꿔 그리면 회전이 사라지니 그러면 안 된다.
@@ -118,7 +118,7 @@ export interface RoadmapResponse {
   zones: RoadmapZoneResponse[];
   /** 부스가 아닌 것들(화장실/입구/무대 등 — 구역에 안 속함). */
   otherNodes: RoadmapNodeResponse[];
-  /** 관리자가 카카오맵에 맞춰 둔 부지 경계·팜플렛. 아직 안 맞췄으면 null. */
+  /** 관리자가 지도에 맞춰 둔 부지 경계·팜플렛. 아직 안 맞췄으면 null. */
   presentation: RoadmapPresentationResponse | null;
 }
 
