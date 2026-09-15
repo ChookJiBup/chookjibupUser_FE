@@ -232,6 +232,17 @@ export function RoadmapMapView({
     [],
   );
 
+  // 휠·터치·자동 범위 맞춤으로 배율이 바뀌어도 확대/축소 버튼 상태를 맞춘다.
+  useEffect(() => {
+    if (!leaflet) return;
+    const { map } = leaflet;
+    const syncZoom = () => setZoom(map.getZoom());
+    map.on("zoomend", syncZoom);
+    return () => {
+      map.off("zoomend", syncZoom);
+    };
+  }, [leaflet]);
+
   useEffect(() => {
     if (!leaflet || fitPoints.length < 2) return;
     const { L, map } = leaflet;
