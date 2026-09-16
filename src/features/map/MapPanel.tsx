@@ -74,8 +74,9 @@ function buildMarkerElement(festival: UserFestivalResponse): HTMLDivElement {
  *   대부분 좌표가 없어서 안 찍힐 수 있다.
  */
 export function MapPanel() {
-  const [tab, setTab] = useState<MapFilterTab>("ALL");
+  const [tab, setTab] = useState<MapFilterTab>("ONGOING");
   const [wishlistOnly, setWishlistOnly] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const [selected, setSelected] = useState<UserFestivalResponse | null>(null);
   const [sdkError, setSdkError] = useState<string | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -138,6 +139,7 @@ export function MapPanel() {
           center,
           level: DEFAULT_LEVEL,
         });
+        setMapReady(true);
       })
       .catch((err: Error) => {
         if (!cancelled) setSdkError(err.message);
@@ -150,7 +152,7 @@ export function MapPanel() {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !mapReady) return;
 
     overlaysRef.current.forEach((overlay) => overlay.setMap(null));
     overlaysRef.current = [];
@@ -160,6 +162,7 @@ export function MapPanel() {
         festival.latitude as number,
         festival.longitude as number,
       );
+
       const element = buildMarkerElement(festival);
       element.addEventListener("click", () => setSelected(festival));
 
@@ -168,10 +171,11 @@ export function MapPanel() {
         content: element,
         yAnchor: 0.5,
       });
+
       overlay.setMap(map);
       overlaysRef.current.push(overlay);
     });
-  }, [festivalsWithCoords]);
+  }, [festivalsWithCoords, mapReady]);
 
   return (
     <div className="relative -mx-5 -my-4 flex h-[calc(100dvh-var(--app-header-height))] flex-col">
