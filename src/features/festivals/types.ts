@@ -151,7 +151,7 @@ export interface UserFestivalDetailResponse {
 }
 
 /** 목록 정렬 기준. name/status 필터와 동시에 쓸 수 없다(백엔드 제약). */
-export type FestivalSort = "WISHLIST_COUNT" | "REVIEW_COUNT";
+export type FestivalSort = "WISHLIST_COUNT" | "REVIEW_COUNT" | "VIEW_COUNT";
 
 export type BoothCongestionLevel = "LOW" | "MEDIUM" | "HIGH";
 

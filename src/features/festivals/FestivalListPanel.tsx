@@ -77,25 +77,23 @@ export function FestivalListPanel() {
     enabled: tab !== "WISHLIST",
   });
   const feed = useInfiniteQuery({
-    queryKey: ["festivals", "home-feed-active", tab, region, isLoggedIn],
-    initialPageParam: { streamIndex: 0, page: 0 } as FeedCursor,
+    queryKey: ["festivals", "home-feed-active", tab, region, isLoggedIn, "VIEW_COUNT"],
+
+    initialPageParam: 0,
+
     queryFn: ({ pageParam }) =>
-      loadFeedPage(
-        tab === "WISHLIST"
-          ? [
-              async (page) => {
-                const result = await getMyWishlist(page, FEED_PAGE_SIZE);
-                return { ...result, items: result.items.map(toFestivalResponseFromWishlist) };
-              },
-            ]
-          : statuses.map(
-              (status) => (page: number) =>
-                getFestivals({ region: regionFilter, status, page, size: FEED_PAGE_SIZE }),
-            ),
-        pageParam,
-        FEED_PAGE_SIZE,
-      ),
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+      getFestivals({
+        region: regionFilter,
+        status: undefined,
+        sort: "VIEW_COUNT",
+        page: pageParam,
+        size: FEED_PAGE_SIZE,
+      }),
+
+    getNextPageParam: (lastPage, allPages) => {
+      return allPages.length < lastPage.totalPages ? allPages.length : undefined;
+    },
+
     enabled: tab !== "WISHLIST" || isLoggedIn,
   });
   const rankedItems = ranking.data ?? [];
