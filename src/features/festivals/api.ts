@@ -12,6 +12,15 @@ import type {
 /** 백엔드가 실제로 보내는 JSON 키(publicId)를 프론트 표준 필드명(id)으로 바꾸기 전 원본 모양. */
 type FestivalWire<T> = Omit<T, "id"> & { publicId: string };
 
+/** 메인 첫 화면의 이미지가 없는 축제에만 쓰는 데모용 대표 이미지. */
+const DEMO_FESTIVAL_IMAGES: Record<string, string> = {
+  "deeed71d-6143-4011-933e-009b77eecadc": "/demo-festival-park.jpg",
+  "ecb626d8-2ff6-44b0-8b28-a68a3c7f9ea6": "/demo-festival-craft.jpg",
+  "6606bd2f-3f3e-4510-95d4-95f59b79fdf1": "/demo-festival-ginseng.jpg",
+  "80485084-3cda-4b2e-9d49-7a47860fb926": "/demo-festival-dance.jpg",
+  "4b8d03bd-db49-4ffe-8152-9f1f4fb8f494": "/2026-chookjibup-test-festival.png",
+};
+
 /** 백엔드 publicId를 프론트 표준 id로 매핑한다 — 컴포넌트는 항상 id만 본다. */
 function toFestivalResponse<T extends { id: string; imageUrl?: string | null }>(
   wire: FestivalWire<T>,
@@ -20,10 +29,7 @@ function toFestivalResponse<T extends { id: string; imageUrl?: string | null }>(
   return {
     ...rest,
     id: publicId,
-    imageUrl:
-      publicId === "4b8d03bd-db49-4ffe-8152-9f1f4fb8f494" && !wire.imageUrl
-        ? "/2026-chookjibup-test-festival.png"
-        : wire.imageUrl,
+    imageUrl: wire.imageUrl || DEMO_FESTIVAL_IMAGES[publicId] || wire.imageUrl,
   } as unknown as T;
 }
 
