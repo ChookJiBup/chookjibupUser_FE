@@ -381,11 +381,7 @@ function CongestionStateNotice({
 
 function BusiestBoothText({ booth }: { booth: BoothCongestionResponse | null }) {
   if (!booth) return <p className="body-regular text-zinc-400">정보 없음</p>;
-  return (
-    <p className="body-regular min-w-0 truncate text-zinc-950">
-      <span className="body-regular-bold text-secondary-600">1</span> {booth.boothName}
-    </p>
-  );
+  return <p className="body-regular min-w-0 truncate text-zinc-950">{booth.boothName}</p>;
 }
 
 /** 라벨 옆 ⓘ. 눌러야 설명이 나오게 둔 건 카드 두 칸에 설명을 늘 펼쳐 둘 자리가 없어서다. */

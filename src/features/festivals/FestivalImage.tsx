@@ -15,7 +15,8 @@ export function FestivalImage({
 }) {
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const source = imageUrl?.trim();
-  const validSource = source && /^https?:\/\//i.test(source) && failedUrl !== source;
+  const validSource =
+    source && (/^https?:\/\//i.test(source) || source.startsWith("/")) && failedUrl !== source;
   return (
     <div
       className={`relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-100 ${className}`}
