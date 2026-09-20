@@ -4,13 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { CheckCircledIcon } from "@radix-ui/react-icons";
-import { parseServerDateTime } from "@/lib/serverTime";
+import { formatServerDate } from "@/lib/serverTime";
 import { getApiErrorMessage, isAuthExpiredError } from "@/lib/api/httpError";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
 import { StarRating } from "@/components/ui/StarRating";
 import { getFestivalDetail } from "@/features/festivals/api";
 import { StatusBadge, formatDateRange } from "@/features/festivals/FestivalCard";
 import { createReview, getReviews } from "./api";
+import { toDisplayReviewerName } from "./reviewerName";
 import type { ReviewResponse } from "./types";
 
 /**
@@ -201,7 +202,10 @@ export function ReviewListItem({ review }: { review: ReviewResponse }) {
     <li className="flex flex-col gap-1 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <p className="body-small-bold text-zinc-700">{review.reviewerName}</p>
+          {/* 작성자 닉네임은 가운데 글자를 가려 보여 준다. 원본은 그대로 두고 표시만 바꾼다. */}
+          <p className="body-small-bold text-zinc-700">
+            {toDisplayReviewerName(review.reviewerName)}
+          </p>
           {review.onsite ? (
             <span title="축제 현장에서 작성된 리뷰예요" className="inline-flex">
               <CheckCircledIcon className="size-3.5 text-secondary-600" />
@@ -209,9 +213,7 @@ export function ReviewListItem({ review }: { review: ReviewResponse }) {
           ) : null}
         </div>
         <time className="body-caption text-zinc-400" dateTime={review.createdAt}>
-          {(parseServerDateTime(review.createdAt) ?? new Date(review.createdAt)).toLocaleDateString(
-            "ko-KR",
-          )}
+          {formatServerDate(review.createdAt) ?? review.createdAt}
         </time>
       </div>
       <StarRating value={review.rating} size={12} />
