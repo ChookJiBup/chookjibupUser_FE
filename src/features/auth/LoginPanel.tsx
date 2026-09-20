@@ -3,8 +3,8 @@
 import { useMutation } from "@tanstack/react-query";
 import { EnvelopeClosedIcon } from "@radix-ui/react-icons";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { KakaoIcon } from "@/components/icons/KakaoIcon";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -12,9 +12,20 @@ import { getApiErrorMessage } from "@/lib/api/httpError";
 import { useUserAuthStore } from "@/store/userAuthStore";
 import { emailLogin, getCurrentUser } from "./api";
 import { getKakaoAuthorizeUrl } from "./kakao";
+import { safeLoginReturn, saveLoginReturn } from "./loginReturn";
 
 export function LoginPanel() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPanelInner />
+    </Suspense>
+  );
+}
+
+function LoginPanelInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnTo = safeLoginReturn(searchParams.get("next"));
   const setSession = useUserAuthStore((state) => state.setSession);
   const [emailMode, setEmailMode] = useState(false);
   const [email, setEmail] = useState("");
@@ -26,7 +37,7 @@ export function LoginPanel() {
     },
     onSuccess: (result) => {
       setSession(result);
-      router.replace("/");
+      router.replace(returnTo);
     },
   });
 
@@ -75,7 +86,10 @@ export function LoginPanel() {
             <Button
               type="button"
               size="lg"
-              onClick={() => window.location.assign(getKakaoAuthorizeUrl())}
+              onClick={() => {
+                saveLoginReturn(returnTo);
+                window.location.assign(getKakaoAuthorizeUrl());
+              }}
               icon={<KakaoIcon />}
               className="body-regular-bold flex h-[51px] w-full items-center justify-center gap-[6px] rounded-lg bg-[#FEE500] text-[#191919] transition-none hover:bg-[#FEE500]"
             >
