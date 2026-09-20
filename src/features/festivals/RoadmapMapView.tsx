@@ -129,14 +129,15 @@ function buildLabelElement(pin: RoadmapPin, congestion?: BoothCongestionHint): H
 export function RoadmapMapView({
   roadmap,
   height = 320,
-  congestionByBoothName,
+  congestionByNodeId,
   selectedNodeId = null,
   onSelectNode,
 }: {
   roadmap: RoadmapResponse;
   height?: number;
   /** 부스 이름 → 혼잡도. 없으면 예전처럼 이름만 보여준다. */
-  congestionByBoothName?: Map<string, BoothCongestionHint>;
+  /** 배치도 노드 id(`publicId`) → 혼잡도. 부스 이름으로 맞춰 잇지 않는다(같은 이름이 있을 수 있다). */
+  congestionByNodeId?: Map<string, BoothCongestionHint>;
   /*
     지금 고른 부스. 지도와 아래 목록이 같은 값을 보게 바깥에서 들고 있는다 —
     지도가 따로 상태를 쥐면 목록에서 고른 부스로 지도가 따라가지 못한다.
@@ -294,7 +295,7 @@ export function RoadmapMapView({
     const overlays: KakaoCustomOverlayInstance[] = [];
 
     pins.forEach((pin) => {
-      const element = buildPinElement(pin, congestionByBoothName?.get(pin.name));
+      const element = buildPinElement(pin, congestionByNodeId?.get(pin.id));
       element.addEventListener("click", () => {
         onSelectNode?.(pin.id === selectedNodeId ? null : pin.id);
       });
@@ -310,20 +311,20 @@ export function RoadmapMapView({
     });
 
     return () => overlays.forEach((item) => item.setMap(null));
-  }, [map, pins, congestionByBoothName, selectedNodeId, onSelectNode]);
+  }, [map, pins, congestionByNodeId, selectedNodeId, onSelectNode]);
 
   // 선택한 점 위에 뜨는 이름표.
   useEffect(() => {
     if (!map || !selected) return;
     const labelOverlay = new window.kakao.maps.CustomOverlay({
       position: new window.kakao.maps.LatLng(selected.point.lat, selected.point.lng),
-      content: buildLabelElement(selected, congestionByBoothName?.get(selected.name)),
+      content: buildLabelElement(selected, congestionByNodeId?.get(selected.id)),
       yAnchor: 1,
       zIndex: 20,
     });
     labelOverlay.setMap(map);
     return () => labelOverlay.setMap(null);
-  }, [map, selected, congestionByBoothName]);
+  }, [map, selected, congestionByNodeId]);
 
   /*
     고른 부스로 지도를 옮긴다. 아래 목록에서 골랐을 때 «그 부스가 어디인지» 보이지 않던

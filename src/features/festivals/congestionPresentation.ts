@@ -1,4 +1,8 @@
-import type { BoothCongestionLevel, BoothCongestionResponse, RoadmapResponse } from "./types";
+import type {
+  BoothCongestionLevel,
+  BoothCongestionResponse,
+  FestivalCongestionResponse,
+} from "./types";
 
 export const CONGESTION_LEVELS: BoothCongestionLevel[] = ["LOW", "MEDIUM", "HIGH"];
 
@@ -37,13 +41,27 @@ export const CONGESTION_PIN_COLOR: Record<BoothCongestionLevel, string> = {
 const LEVEL_RANK: Record<BoothCongestionLevel, number> = { LOW: 0, MEDIUM: 1, HIGH: 2 };
 
 /**
- * 「전체 혼잡도」에 대표로 보여줄 등급.
+ * 「전체 혼잡도」에 보여줄 등급.
  *
- * <p>백엔드에는 축제 단위 혼잡도 필드가 없어서 부스 등급에서 파생시킨다. 가장 높은
- * 등급을 대표로 삼는 것은 축제 상세 화면의 실시간 요약과 같은 규칙이다 — 두 화면이
- * 다른 규칙을 쓰면 같은 축제가 한쪽에선 「여유」, 다른 쪽에선 「혼잡」이 된다.</p>
+ * <p>이 값은 서버가 `congestionLevel`로 내려준다(부스 등급 중 가장 높은 값). 프론트가
+ * 직접 파생시키지 않는 이유는 같은 값을 두 화면(축제 상세의 실시간 요약, 실시간 현황)이
+ * 쓰는데 규칙이 양쪽에 흩어져 있으면 언젠가 한쪽만 바뀌기 때문이다.</p>
+ *
+ * <p>필드가 아예 없는 응답(= 이 필드를 내려주기 전 서버)일 때만 예전과 똑같은 규칙으로
+ * 대신 계산한다. 규칙이 서버와 글자 그대로 같으므로 값이 어긋날 일이 없고, 배포가
+ * 엇갈린 잠깐 동안 화면이 「정보 없음」으로 비지 않는다. 반대로 구역(zone)은 예전 방식
+ * (부스 이름 맞추기)이 틀린 값을 만들 수 있어서 대체 계산을 두지 않았다.</p>
  */
-export function pickOverallLevel(booths: BoothCongestionResponse[]): BoothCongestionLevel | null {
+export function resolveOverallLevel(
+  congestion: FestivalCongestionResponse | null | undefined,
+): BoothCongestionLevel | null {
+  if (!congestion) return null;
+  if (congestion.congestionLevel !== undefined) return congestion.congestionLevel;
+  return deriveOverallLevel(congestion.booths);
+}
+
+/** 구버전 서버 대비용 대체 계산. 서버의 규칙(부스 등급 중 최고값)과 같아야 한다. */
+function deriveOverallLevel(booths: BoothCongestionResponse[]): BoothCongestionLevel | null {
   const levels = booths
     .map((booth) => booth.congestionLevel)
     .filter((level): level is BoothCongestionLevel => level !== null);
@@ -51,33 +69,42 @@ export function pickOverallLevel(booths: BoothCongestionResponse[]): BoothConges
   return levels.reduce((worst, level) => (LEVEL_RANK[level] > LEVEL_RANK[worst] ? level : worst));
 }
 
-/**
- * 부스 이름 → 구역 이름.
- *
- * <p>혼잡도 API의 boothId는 숫자, 배치도 노드는 UUID라 둘을 이어 붙일 키가 부스 이름밖에
- * 없다(부스지도 탭이 쓰는 방식과 같다). 그래서 배치도가 아직 발행되지 않았거나 이름이
- * 다르게 등록된 부스는 구역을 알 수 없고, 그런 부스는 구역 필터에서 자연스럽게 빠진다.</p>
- */
-export function buildZoneByBoothName(roadmap: RoadmapResponse | null): Map<string, string> {
-  const map = new Map<string, string>();
-  roadmap?.zones.forEach((zone) => {
-    zone.booths.forEach((booth) => {
-      if (booth.name) map.set(booth.name, zone.name);
-    });
-  });
-  return map;
+/** 구역 필터의 선택지 하나. 고를 때는 이름이 아니라 zoneId로 잡는다(이름은 겹칠 수 있다). */
+export interface ZoneOption {
+  zoneId: string;
+  name: string;
 }
 
-/** 구역 옵션 시트에 띄울 구역 이름들. 배치도가 없으면 빈 배열이라 필터 자체를 감춘다. */
-export function collectZoneNames(roadmap: RoadmapResponse | null): string[] {
-  return (roadmap?.zones ?? []).map((zone) => zone.name).filter((name) => name.trim() !== "");
+/**
+ * 구역 옵션 시트에 띄울 구역들.
+ *
+ * <p>혼잡도 응답의 부스가 이미 자기 구역을 달고 오므로 축제 상세(배치도)를 따로 부르지
+ * 않는다. 예전에는 배치도를 받아 부스 «이름»으로 구역을 맞춰 붙였는데, 이름이 조금만
+ * 달라도 구역이 안 붙었고 배치도가 공개 전이면 필터 자체가 사라졌다.</p>
+ *
+ * <p>구역이 없는 부스(미지정)는 선택지로 만들지 않는다 — 고를 수 있는 건 「어느 구역」
+ * 뿐이고, 미지정만 따로 보려는 요구는 아직 화면에 없다.</p>
+ */
+export function collectZoneOptions(booths: BoothCongestionResponse[]): ZoneOption[] {
+  const options: ZoneOption[] = [];
+  const seen = new Set<string>();
+  booths.forEach((booth) => {
+    const zoneId = booth.zoneId;
+    if (!zoneId || seen.has(zoneId)) return;
+    seen.add(zoneId);
+    options.push({ zoneId, name: booth.zoneName ?? "이름 없는 구역" });
+  });
+  return options;
 }
 
 /** 구역 칩에 적을 요약 문구. 여러 개를 다 적으면 칩이 화면 밖으로 밀려난다. */
-export function formatZoneChipLabel(selected: string[]): string {
-  if (selected.length === 0) return "전체 구역";
-  if (selected.length === 1) return selected[0];
-  return `${selected[0]} 외 ${selected.length - 1}`;
+export function formatZoneChipLabel(options: ZoneOption[], selectedZoneIds: string[]): string {
+  const names = options
+    .filter((option) => selectedZoneIds.includes(option.zoneId))
+    .map((option) => option.name);
+  if (names.length === 0) return "전체 구역";
+  if (names.length === 1) return names[0];
+  return `${names[0]} 외 ${names.length - 1}`;
 }
 
 /**

@@ -28,7 +28,7 @@ import {
   CONGESTION_LABEL,
   CONGESTION_PILL_CLASS,
   CONGESTION_TEXT_CLASS,
-  pickOverallLevel,
+  resolveOverallLevel,
 } from "./congestionPresentation";
 import { formatClockTime, formatServerUpdatedAt } from "@/lib/serverTime";
 import { collectRoadmapPins, readAreaPoints, readBoundary, readOverlay } from "./mapPresentation";
@@ -317,7 +317,7 @@ function CongestionSummary({
   const congestion = query.data;
   if (!congestion || congestion.booths.length === 0) return null;
 
-  const overallLevel = pickOverallLevel(congestion.booths);
+  const overallLevel = resolveOverallLevel(congestion);
   const updatedAt = formatServerUpdatedAt(congestion.updatedAt);
 
   return (
@@ -542,15 +542,16 @@ function RoadmapTab({
   const isOngoing = progressStatus === "ONGOING";
 
   /*
-    혼잡도 API의 boothId는 숫자, 배치도 노드는 UUID라 서로 이어 붙일 키가 부스 이름밖에
-    없다. 이름이 겹치는 부스가 생기면 먼저 온 쪽을 쓴다.
+    혼잡도와 배치도 노드는 혼잡도 응답의 `roadmapNodePublicId`로 잇는다. 예전에는 이어
+    붙일 키가 부스 «이름»밖에 없어서, 이름이 겹치는 부스가 있으면 남의 혼잡도가 묻어
+    나왔다. 이 필드를 아직 안 내려주는 서버에서는 비어 있어 핀이 혼잡도 색 없이 그려진다.
   */
-  const congestionByBoothName = useMemo(() => {
+  const congestionByNodeId = useMemo(() => {
     const map = new Map<string, BoothCongestionHint>();
     // 진행중이 아닌 축제는 지도 핀도 혼잡도 색 없이 그려야 하므로 아예 비워 둔다.
     (isOngoing ? (congestion?.booths ?? []) : []).forEach((booth) => {
-      if (map.has(booth.boothName)) return;
-      map.set(booth.boothName, {
+      if (!booth.roadmapNodePublicId) return;
+      map.set(booth.roadmapNodePublicId, {
         level: booth.congestionLevel,
         waitMinutes: booth.waitMinutes,
       });
@@ -609,7 +610,7 @@ function RoadmapTab({
         {canShowMap ? (
           <RoadmapMapView
             roadmap={roadmap}
-            congestionByBoothName={congestionByBoothName}
+            congestionByNodeId={congestionByNodeId}
             selectedNodeId={selectedNodeId}
             onSelectNode={setSelectedNodeId}
           />

@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Roboto } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
-import { Header } from "@/components/layout/Header";
 import { Providers } from "./providers";
 
 const pretendard = localFont({
@@ -26,6 +25,10 @@ export const metadata: Metadata = {
   description: "AI 기반 축제 대기열 배치 설계 및 대기시간 안내 플랫폼",
 };
 
+/**
+ * 루트 레이아웃은 html/body와 Providers만 담당한다. 앱 셸(모바일 폭 + 전역 헤더)은
+ * 화면마다 다르게 가져가야 해서 라우트 그룹 레이아웃((shell)/(bare))으로 내렸다.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -34,14 +37,7 @@ export default function RootLayout({
   return (
     <html lang="ko" className={`${pretendard.variable} ${roboto.variable} h-full antialiased`}>
       <body className="min-h-dvh bg-zinc-100">
-        <Providers>
-          <div className="mobile-app-shell mx-auto flex flex-col bg-white shadow-sm">
-            <Header />
-            <main className="relative isolate z-0 flex min-w-0 flex-1 flex-col px-5 py-4">
-              {children}
-            </main>
-          </div>
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

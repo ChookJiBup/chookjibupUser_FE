@@ -7,6 +7,7 @@ import {
   GearIcon,
   HamburgerMenuIcon,
   MagnifyingGlassIcon,
+  PersonIcon,
 } from "@radix-ui/react-icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,6 +24,8 @@ export function Header() {
   const session = useUserAuthStore((state) => state.session);
   const clearSession = useUserAuthStore((state) => state.clearSession);
   const isLoggedIn = hasHydrated && session !== null;
+  // 카카오 가입 계정은 닉네임이 비어 올 수 있어서, 그때도 헤더가 " 님"만 남지 않도록 대체 호칭을 쓴다.
+  const displayName = session?.nickname?.trim() || "회원";
 
   const handleLogout = async () => {
     try {
@@ -68,7 +71,7 @@ export function Header() {
             </Link>
           </div>
 
-          <div className="flex h-8 w-[105px] shrink-0 items-center gap-3">
+          <div className="flex h-8 shrink-0 items-center gap-3">
             <Link
               href="/search"
               aria-label="축제 검색"
@@ -77,14 +80,31 @@ export function Header() {
               <MagnifyingGlassIcon className="size-6" />
             </Link>
             {isLoggedIn ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleLogout}
-                className="h-8 w-[69px] px-0"
+              /*
+               * 시안의 로그인 상태 헤더는 아바타 + "OOO 님"이다. 로그아웃 버튼이 여기서 빠지는
+               * 대신, 이름을 누르면 계정 정보를 보는 마이페이지로 보낸다. 로그아웃 자체는 원래도
+               * 햄버거 메뉴 맨 아래에 있었고(시안 메모도 햄버거바에 로그아웃을 둔다), 마이페이지에도
+               * 같은 도선을 남겨 둬서 두 경로 모두로 로그아웃할 수 있다.
+               */
+              <Link
+                href="/mypage"
+                onClick={closeMenu}
+                className="flex h-8 min-w-0 items-center gap-2 rounded-full text-zinc-950 hover:bg-zinc-100"
               >
-                로그아웃
-              </Button>
+                {session?.profileImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={session.profileImageUrl}
+                    alt=""
+                    className="size-6 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500">
+                    <PersonIcon aria-hidden className="size-4" />
+                  </span>
+                )}
+                <span className="body-small max-w-[92px] truncate">{displayName} 님</span>
+              </Link>
             ) : (
               <Button
                 variant="outline"
