@@ -15,19 +15,24 @@ import { getFestivals } from "./api";
 import { REGIONS } from "./regions";
 import type { FestivalProgressStatus, FestivalSort, UserFestivalResponse } from "./types";
 
-type FilterTab = "ALL" | Exclude<FestivalProgressStatus, "COMPLETED"> | "WISHLIST";
+type FilterTab = "ALL" | FestivalProgressStatus | "WISHLIST";
 const TABS: { value: FilterTab; label: string }[] = [
   { value: "ALL", label: "전체" },
   { value: "ONGOING", label: "진행중" },
   { value: "UPCOMING", label: "진행예정" },
+  { value: "COMPLETED", label: "진행완료" },
   { value: "WISHLIST", label: "내가 저장한 축제" },
 ];
 
 /**
- * 홈에 노출할 축제 상태. 백엔드에는 "종료 제외" 필터가 없고 status 파라미터도 값을 하나만
- * 받으므로, 전체 탭에서는 두 상태를 각각 조회해 이어 붙인다. 상태 필터 없이 받아서
- * 클라이언트에서 종료 축제를 걸러내면, 목록이 시작일 오름차순이라 옛날 축제 수백 페이지를
- * 전부 훑고 나서야 첫 화면이 그려진다.
+ * 「전체」 탭에 노출할 축제 상태.
+ *
+ * 끝난 축제는 「진행완료」 탭에서 따로 본다. 전체에 섞으면 목록이 시작일 오름차순이라
+ * 지난 축제가 앞을 다 차지해, 정작 지금 갈 수 있는 축제가 한참 뒤로 밀린다.
+ *
+ * 백엔드에는 "종료 제외" 필터가 없고 status 파라미터도 값을 하나만 받으므로, 두 상태를
+ * 각각 조회해 이어 붙인다. 상태 필터 없이 받아서 클라이언트에서 걸러내면 옛날 축제
+ * 수백 페이지를 전부 훑고 나서야 첫 화면이 그려진다.
  */
 const ACTIVE_STATUSES: Exclude<FestivalProgressStatus, "COMPLETED">[] = ["ONGOING", "UPCOMING"];
 const FEED_PAGE_SIZE = 6;
@@ -57,7 +62,8 @@ export function FestivalListPanel() {
   const session = useUserAuthStore((state) => state.session);
   const isLoggedIn = hasHydrated && session !== null;
   const regionFilter = region === "ALL" ? undefined : region;
-  const statuses = tab === "ONGOING" || tab === "UPCOMING" ? [tab] : ACTIVE_STATUSES;
+  const statuses =
+    tab === "ONGOING" || tab === "UPCOMING" || tab === "COMPLETED" ? [tab] : ACTIVE_STATUSES;
   const ranking = useQuery({
     queryKey: ["festivals", "ranking-active", tab, region, sort, isLoggedIn],
     queryFn: async () => {
