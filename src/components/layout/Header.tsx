@@ -1,6 +1,7 @@
 "use client";
 
 import { HeartIcon } from "@/components/icons/HeartIcon";
+import { Logo } from "./Logo";
 
 import {
   Cross1Icon,
@@ -65,9 +66,10 @@ export function Header() {
                 closeMenu();
                 window.dispatchEvent(new Event("festival-home-reset"));
               }}
-              className="body-caption flex h-8 w-12 shrink-0 items-center justify-center rounded bg-zinc-100 text-zinc-950"
+              className="flex h-8 shrink-0 items-center"
             >
-              축지법
+              {/* 로고가 워드마크를 겸한다. 자리를 비워 두던 회색 상자와 「축지법」 글자를 대신한다. */}
+              <Logo className="h-full w-auto text-point-500" />
             </Link>
           </div>
 
