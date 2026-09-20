@@ -40,6 +40,35 @@ export function formatServerUpdatedAt(iso: string | null | undefined): string | 
 }
 
 /**
+ * 로컬 달력 기준 Date를 `yyyy-MM-dd`로 적는다.
+ *
+ * <p>월·일은 두 자리로 0을 채운다(`2026-9-5`가 아니라 `2026-09-05`). `toISOString()`을
+ * 쓰면 UTC로 찍혀 한국 시간 오전 9시 이전이 전날로 밀리므로 쓰지 않는다.</p>
+ */
+export function toIsoDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * 서버가 내려준 시각 문자열에서 «한국에서 본 날짜»만 `yyyy-MM-dd`로 뽑는다.
+ *
+ * <p>예전에는 `toLocaleDateString("ko-KR")`로 찍어 `2026. 9. 20.`처럼 마침표가 붙고
+ * 자릿수도 들쑥날쑥했다. 날짜 표기를 하이픈으로 통일하면서 바꿨다.</p>
+ *
+ * <p>문자열 앞 10글자를 그냥 자르면 안 된다. 서버 값은 타임존 없는 UTC라
+ * (`2026-09-20T16:30:00` = 한국시간 9월 21일 새벽 1시 30분) 저녁에 쓴 리뷰의 날짜가
+ * 하루 전으로 보인다. {@link parseServerDateTime}으로 UTC임을 못박아 읽은 뒤
+ * 로컬 달력에서 날짜를 꺼낸다.</p>
+ */
+export function formatServerDate(iso: string | null | undefined): string | null {
+  const date = parseServerDateTime(iso);
+  return date ? toIsoDateString(date) : null;
+}
+
+/**
  * 서버가 내려주는 `09:00:00` 같은 시각에서 초를 떼어 낸다.
  *
  * <p>운영시간은 분 단위로만 정하는데 초까지 그대로 보여 주면 「09:00:00~18:00:00」처럼
