@@ -383,7 +383,7 @@ function BusiestBoothText({ booth }: { booth: BoothCongestionResponse | null }) 
   if (!booth) return <p className="body-regular text-zinc-400">정보 없음</p>;
   return (
     <p className="body-regular min-w-0 truncate text-zinc-950">
-      <span className="body-regular-bold text-secondary-600">1</span> {booth.boothName}
+      {booth.boothName}
     </p>
   );
 }

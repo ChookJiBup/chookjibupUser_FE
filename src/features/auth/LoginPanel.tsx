@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { useUserAuthStore } from "@/store/userAuthStore";
-import { emailLogin } from "./api";
+import { emailLogin, getCurrentUser } from "./api";
 import { getKakaoAuthorizeUrl } from "./kakao";
 
 export function LoginPanel() {
@@ -20,7 +20,10 @@ export function LoginPanel() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const loginMutation = useMutation({
-    mutationFn: () => emailLogin({ email, password }),
+    mutationFn: async () => {
+      await emailLogin({ email, password });
+      return getCurrentUser();
+    },
     onSuccess: (result) => {
       setSession(result);
       router.replace("/");

@@ -78,6 +78,7 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
       queryClient.invalidateQueries({ queryKey: ["festival", festivalId] });
       queryClient.invalidateQueries({ queryKey: ["festivals"] });
       queryClient.invalidateQueries({ queryKey: ["festival-search"] });
+      queryClient.invalidateQueries({ queryKey: ["my-wishlist"] });
     },
   });
 
