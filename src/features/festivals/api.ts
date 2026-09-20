@@ -13,7 +13,9 @@ import type {
 type FestivalWire<T> = Omit<T, "id"> & { publicId: string };
 
 /** 백엔드 publicId를 프론트 표준 id로 매핑한다 — 컴포넌트는 항상 id만 본다. */
-function toFestivalResponse<T extends { id: string; imageUrl?: string | null }>(wire: FestivalWire<T>): T {
+function toFestivalResponse<T extends { id: string; imageUrl?: string | null }>(
+  wire: FestivalWire<T>,
+): T {
   const { publicId, ...rest } = wire;
   return {
     ...rest,
