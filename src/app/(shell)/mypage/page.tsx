@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { UserAuthGuard } from "@/components/auth/UserAuthGuard";
+import { logout } from "@/features/auth/api";
 import { useUserAuthStore } from "@/store/userAuthStore";
 
 /**
@@ -27,8 +29,21 @@ export default function MyPage() {
 }
 
 function MyPageContent() {
+  const router = useRouter();
   const session = useUserAuthStore((state) => state.session);
+  const clearSession = useUserAuthStore((state) => state.clearSession);
   if (!session) return null;
+
+  // 헤더 오른쪽이 아바타 + 이름으로 바뀌면서 그 자리에 있던 로그아웃 버튼이 없어졌다.
+  // 이름을 누르면 오는 곳이 여기라, 햄버거 메뉴와 함께 이 화면에도 로그아웃을 남겨 둔다.
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      clearSession();
+      router.replace("/login");
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -50,6 +65,13 @@ function MyPageContent() {
         <Link href="/wishlist" className="body-regular px-4 py-3 text-zinc-950">
           내가 저장한 축제
         </Link>
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="body-regular px-4 py-3 text-left text-zinc-950"
+        >
+          로그아웃
+        </button>
       </div>
     </div>
   );
