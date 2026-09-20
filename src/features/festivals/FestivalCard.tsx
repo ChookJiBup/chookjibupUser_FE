@@ -45,6 +45,42 @@ export function formatDateRange(startDate: string | null, endDate: string | null
   return `${startDate} ~ ${endDate}`;
 }
 
+const WEEKDAY_LABEL = ["일", "월", "화", "수", "목", "금", "토"];
+
+/**
+ * 서버가 주는 `2026-07-31`을 시안의 한글 표기(`2026년 7월 31일(금)`)로 바꾼다.
+ *
+ * <p>날짜 구분자를 하이픈으로 통일한 규칙은 숫자 표기에만 적용되는 것이라, 시안이
+ * 한글 서술형으로 그려 둔 자리는 그대로 한글로 적는다.</p>
+ *
+ * <p>`new Date("2026-07-31")`은 UTC 자정으로 읽혀 한국에서는 하루가 밀릴 수 있으므로
+ * 연·월·일을 직접 꺼내 로컬 달력으로 만든다.</p>
+ */
+export function formatKoreanDate(date: string | null, options?: { withWeekday?: boolean }) {
+  if (!date) return null;
+  const matched = /^(\d{4})-(\d{2})-(\d{2})/.exec(date.trim());
+  if (!matched) return date;
+
+  const [, year, month, day] = matched;
+  const text = `${year}년 ${Number(month)}월 ${Number(day)}일`;
+  if (!options?.withWeekday) return text;
+
+  const local = new Date(Number(year), Number(month) - 1, Number(day));
+  return `${text}(${WEEKDAY_LABEL[local.getDay()]})`;
+}
+
+/**
+ * 도로명주소 앞부분만 잘라 «인천광역시 연수구»처럼 지역만 보여 준다.
+ *
+ * <p>상세 헤더는 한 줄에 지역과 기간을 같이 두는데, 전체 주소를 그대로 넣으면 줄이
+ * 넘쳐 기간이 잘린다. 주소가 없는 축제는 행사장소 이름으로 대신한다.</p>
+ */
+export function formatShortRegion(address: string | null, eventPlace: string | null) {
+  const tokens = address?.trim().split(/\s+/) ?? [];
+  if (tokens.length >= 2) return `${tokens[0]} ${tokens[1]}`;
+  return address ?? eventPlace ?? null;
+}
+
 export function FestivalThumbnail({
   size = 64,
   className = "",
