@@ -65,6 +65,9 @@ function MyPageContent() {
         <Link href="/wishlist" className="body-regular px-4 py-3 text-zinc-950">
           내가 저장한 축제
         </Link>
+        <Link href="/mypage/reviews" className="body-regular px-4 py-3 text-zinc-950">
+          내가 쓴 리뷰
+        </Link>
         <button
           type="button"
           onClick={handleLogout}
