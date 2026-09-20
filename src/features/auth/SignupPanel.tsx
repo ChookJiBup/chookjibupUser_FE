@@ -10,6 +10,7 @@ import { PhoneInput } from "@/components/ui/PhoneInput";
 import {
   confirmEmailVerification,
   emailSignup,
+  getCurrentUser,
   requestEmailVerification,
 } from "@/features/auth/api";
 import { getApiErrorMessage } from "@/lib/api/httpError";
@@ -52,15 +53,17 @@ export function SignupPanel() {
     onSuccess: () => setEmailVerified(true),
   });
   const signupMutation = useMutation({
-    mutationFn: () =>
-      emailSignup({
+    mutationFn: async () => {
+      await emailSignup({
         email,
         password,
         passwordConfirm,
         nickname,
         phoneNumber: phoneNumber || undefined,
         birthDate: birthDate || undefined,
-      }),
+      });
+      return getCurrentUser();
+    },
     onSuccess: (result) => {
       setSession(result);
       router.replace("/");

@@ -87,14 +87,19 @@ export function FestivalListPanel() {
 
     initialPageParam: 0,
 
-    queryFn: ({ pageParam }) =>
-      getFestivals({
+    queryFn: async ({ pageParam }) => {
+      if (tab === "WISHLIST") {
+        const page = await getMyWishlist(pageParam, FEED_PAGE_SIZE);
+        return { ...page, items: page.items.map(toFestivalResponseFromWishlist) };
+      }
+      return getFestivals({
         region: regionFilter,
         status: undefined,
         sort: "VIEW_COUNT",
         page: pageParam,
         size: FEED_PAGE_SIZE,
-      }),
+      });
+    },
 
     getNextPageParam: (lastPage, allPages) => {
       return allPages.length < lastPage.totalPages ? allPages.length : undefined;
@@ -400,9 +405,7 @@ function QueryMessage({
 }
 
 /**
- * 찜 목록 응답엔 progressStatus/좌표/전화번호/찜·리뷰 개수 등이 없어서, 카드 표시에
- * 필요한 만큼만 채워 넣는다. wishlistCount/reviewCount는 이 탭에서만 0으로 나온다 —
- * 필요해지면 백엔드 응답에 필드를 추가해야 한다.
+ * 찜 목록 응답을 축제 카드의 공통 형식으로 바꾼다.
  */
 function toFestivalResponseFromWishlist(item: {
   id: string;

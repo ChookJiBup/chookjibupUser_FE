@@ -13,9 +13,16 @@ import type {
 type FestivalWire<T> = Omit<T, "id"> & { publicId: string };
 
 /** 백엔드 publicId를 프론트 표준 id로 매핑한다 — 컴포넌트는 항상 id만 본다. */
-function toFestivalResponse<T extends { id: string }>(wire: FestivalWire<T>): T {
+function toFestivalResponse<T extends { id: string; imageUrl?: string | null }>(wire: FestivalWire<T>): T {
   const { publicId, ...rest } = wire;
-  return { ...rest, id: publicId } as unknown as T;
+  return {
+    ...rest,
+    id: publicId,
+    imageUrl:
+      publicId === "4b8d03bd-db49-4ffe-8152-9f1f4fb8f494" && !wire.imageUrl
+        ? "/2026-chookjibup-test-festival.png"
+        : wire.imageUrl,
+  } as unknown as T;
 }
 
 export interface GetFestivalsParams {

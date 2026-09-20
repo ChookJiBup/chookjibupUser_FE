@@ -4,7 +4,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
-import { kakaoLogin } from "@/features/auth/api";
+import { getCurrentUser, kakaoLogin } from "@/features/auth/api";
 import { getKakaoRedirectUri } from "@/features/auth/kakao";
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { useUserAuthStore } from "@/store/userAuthStore";
@@ -18,8 +18,10 @@ function KakaoCallbackInner() {
   const code = searchParams.get("code");
 
   const loginMutation = useMutation({
-    mutationFn: (authCode: string) =>
-      kakaoLogin({ code: authCode, redirectUri: getKakaoRedirectUri() }),
+    mutationFn: async (authCode: string) => {
+      await kakaoLogin({ code: authCode, redirectUri: getKakaoRedirectUri() });
+      return getCurrentUser();
+    },
     onSuccess: (result) => {
       setSession(result);
       router.replace("/");
