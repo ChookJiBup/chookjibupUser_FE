@@ -27,10 +27,10 @@ import {
   CONGESTION_LEVELS,
   CONGESTION_PILL_CLASS,
   CONGESTION_TEXT_CLASS,
-  buildZoneByBoothName,
-  collectZoneNames,
+  collectZoneOptions,
   formatZoneChipLabel,
-  pickOverallLevel,
+  resolveOverallLevel,
+  type ZoneOption,
 } from "./congestionPresentation";
 import { collectRoadmapPins } from "./mapPresentation";
 import type {
@@ -61,15 +61,15 @@ const CHIP_ON = "border-point-600 bg-point-600 text-white";
  */
 export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) {
   const [view, setView] = useState<ViewMode>("LIST");
-  const [selectedZones, setSelectedZones] = useState<string[]>([]);
+  const [selectedZoneIds, setSelectedZoneIds] = useState<string[]>([]);
   const [selectedLevels, setSelectedLevels] = useState<BoothCongestionLevel[]>([]);
   const [zoneSheetOpen, setZoneSheetOpen] = useState(false);
-  const [selectedBoothName, setSelectedBoothName] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   /*
     축제 상세와 같은 쿼리 키를 쓴다 — 상세에서 넘어오면 이미 받아 둔 응답을 그대로
-    쓰게 되어 화면이 깜빡이지 않는다. 구역 이름과 부스 좌표가 이 응답(roadmap)에만
-    있어서 혼잡도 API만으로는 이 화면을 그릴 수 없다.
+    쓰게 되어 화면이 깜빡이지 않는다. 축제 이름·진행 상태와 지도 뷰의 부스 좌표가 이
+    응답에만 있어서 부른다(구역은 이제 혼잡도 응답이 직접 달고 온다).
   */
   const festivalQuery = useQuery({
     queryKey: ["festival", festivalId],
@@ -86,8 +86,7 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
   // React Compiler가 메모이제이션을 포기한다).
   const roadmap = festival?.roadmap ?? null;
 
-  const zoneByBoothName = useMemo(() => buildZoneByBoothName(roadmap), [roadmap]);
-  const zoneNames = useMemo(() => collectZoneNames(roadmap), [roadmap]);
+  const zoneOptions = useMemo(() => collectZoneOptions(congestion?.booths ?? []), [congestion]);
 
   /*
     서버가 주는 booths 순서는 부스 등록 순(boothId)이라 방문객에게는 아무 의미가 없다.
@@ -108,32 +107,36 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
       if (selectedLevels.length > 0) {
         if (!booth.congestionLevel || !selectedLevels.includes(booth.congestionLevel)) return false;
       }
-      if (selectedZones.length > 0) {
-        const zone = zoneByBoothName.get(booth.boothName);
-        if (!zone || !selectedZones.includes(zone)) return false;
+      if (selectedZoneIds.length > 0) {
+        if (!booth.zoneId || !selectedZoneIds.includes(booth.zoneId)) return false;
       }
       return true;
     });
-  }, [sortedBooths, selectedLevels, selectedZones, zoneByBoothName]);
+  }, [sortedBooths, selectedLevels, selectedZoneIds]);
 
-  const levelByBoothName = useMemo(() => {
+  /*
+    지도 핀과 혼잡도는 배치도 노드 id로 잇는다. 예전에는 부스 «이름»으로 맞췄는데,
+    이름이 같은 부스 둘은 한쪽 등급이 다른 쪽에 묻어 나왔다.
+  */
+  const levelByNodeId = useMemo(() => {
     const map = new Map<string, BoothCongestionLevel | null>();
     (congestion?.booths ?? []).forEach((booth) => {
-      map.set(booth.boothName, booth.congestionLevel);
+      if (booth.roadmapNodePublicId) map.set(booth.roadmapNodePublicId, booth.congestionLevel);
     });
     return map;
   }, [congestion]);
 
   const selectedBooth = useMemo(
     () =>
-      selectedBoothName === null
+      selectedNodeId === null
         ? null
-        : ((congestion?.booths ?? []).find((booth) => booth.boothName === selectedBoothName) ??
-          null),
-    [congestion, selectedBoothName],
+        : ((congestion?.booths ?? []).find(
+            (booth) => booth.roadmapNodePublicId === selectedNodeId,
+          ) ?? null),
+    [congestion, selectedNodeId],
   );
 
-  const overallLevel = useMemo(() => pickOverallLevel(congestion?.booths ?? []), [congestion]);
+  const overallLevel = resolveOverallLevel(congestion);
   const busiestBooth = congestion?.ranking[0] ?? null;
   const hasMappedBooths = useMemo(
     () => (roadmap ? collectRoadmapPins(roadmap).some((pin) => pin.isBooth) : false),
@@ -161,7 +164,7 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
   }
   if (!festival) return null;
 
-  const appliedFilterCount = selectedZones.length + selectedLevels.length;
+  const appliedFilterCount = selectedZoneIds.length + selectedLevels.length;
 
   return (
     <div className="-mx-5 -my-4 flex min-h-[calc(100dvh-var(--app-header-height))] flex-col bg-white">
@@ -186,7 +189,7 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
           aria-label={view === "LIST" ? "지도 보기" : "목록 보기"}
           onClick={() => {
             setView((current) => (current === "LIST" ? "MAP" : "LIST"));
-            setSelectedBoothName(null);
+            setSelectedNodeId(null);
           }}
           className="flex size-8 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-950"
         >
@@ -232,14 +235,14 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
                 {appliedFilterCount > 0 ? appliedFilterCount : null}
               </span>
 
-              {zoneNames.length > 0 ? (
+              {zoneOptions.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => setZoneSheetOpen(true)}
                   className={`${CHIP_BASE} ${CHIP_OFF}`}
                 >
                   <span className="max-w-[140px] truncate">
-                    {formatZoneChipLabel(selectedZones)}
+                    {formatZoneChipLabel(zoneOptions, selectedZoneIds)}
                   </span>
                   <ChevronDownIcon className="size-4 shrink-0" />
                 </button>
@@ -278,11 +281,7 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
             ) : (
               <div className="flex flex-col">
                 {visibleBooths.map((booth) => (
-                  <BoothRow
-                    key={booth.boothId}
-                    booth={booth}
-                    zoneName={zoneByBoothName.get(booth.boothName) ?? null}
-                  />
+                  <BoothRow key={booth.boothId} booth={booth} />
                 ))}
               </div>
             )}
@@ -293,9 +292,9 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
           {roadmap && hasMappedBooths ? (
             <CongestionMapView
               roadmap={roadmap}
-              levelByBoothName={levelByBoothName}
-              selectedBoothName={selectedBoothName}
-              onSelectBooth={setSelectedBoothName}
+              levelByNodeId={levelByNodeId}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={setSelectedNodeId}
             />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center bg-zinc-100 px-5">
@@ -310,7 +309,7 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
               booth={selectedBooth}
               isRefreshing={congestionQuery.isFetching}
               onRefresh={() => congestionQuery.refetch()}
-              onClose={() => setSelectedBoothName(null)}
+              onClose={() => setSelectedNodeId(null)}
             />
           ) : (
             <div className="absolute inset-x-5 bottom-5 z-10 flex flex-col gap-2 rounded-lg bg-white px-4 py-3 shadow-lg">
@@ -336,11 +335,11 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
 
       {zoneSheetOpen ? (
         <ZoneOptionSheet
-          zoneNames={zoneNames}
-          selected={selectedZones}
+          options={zoneOptions}
+          selected={selectedZoneIds}
           onClose={() => setZoneSheetOpen(false)}
           onApply={(next) => {
-            setSelectedZones(next);
+            setSelectedZoneIds(next);
             setZoneSheetOpen(false);
           }}
         />
@@ -413,13 +412,7 @@ function HelpLabel({ label, hint }: { label: string; hint: string }) {
   );
 }
 
-function BoothRow({
-  booth,
-  zoneName,
-}: {
-  booth: BoothCongestionResponse;
-  zoneName: string | null;
-}) {
+function BoothRow({ booth }: { booth: BoothCongestionResponse }) {
   const timeAgo = formatTimeAgo(booth.updatedAt);
   const waitText =
     booth.waitMinutes === null ? "예상 대기 정보 없음" : `예상 대기 ${booth.waitMinutes}분`;
@@ -429,7 +422,9 @@ function BoothRow({
       <div className="flex min-w-0 flex-col">
         <div className="flex min-w-0 items-center gap-2">
           <p className="body-regular truncate text-zinc-950">{booth.boothName}</p>
-          {zoneName ? <p className="body-caption shrink-0 text-zinc-600">{zoneName}</p> : null}
+          {booth.zoneName ? (
+            <p className="body-caption shrink-0 text-zinc-600">{booth.zoneName}</p>
+          ) : null}
         </div>
         <p className="body-caption text-zinc-500">
           {timeAgo ? `${waitText} · ${timeAgo} 업데이트` : waitText}
@@ -533,21 +528,22 @@ function BoothDetailSheet({
  * 계속 바뀌면 무엇을 고르는 중인지 알 수 없다.</p>
  */
 function ZoneOptionSheet({
-  zoneNames,
+  options,
   selected,
   onClose,
   onApply,
 }: {
-  zoneNames: string[];
+  options: ZoneOption[];
+  /** 고른 구역의 zoneId 목록. 이름은 겹칠 수 있어 선택 키로 쓰지 않는다. */
   selected: string[];
   onClose: () => void;
   onApply: (next: string[]) => void;
 }) {
   const [draft, setDraft] = useState<string[]>(selected);
 
-  function toggle(zone: string) {
+  function toggle(zoneId: string) {
     setDraft((current) =>
-      current.includes(zone) ? current.filter((item) => item !== zone) : [...current, zone],
+      current.includes(zoneId) ? current.filter((item) => item !== zoneId) : [...current, zoneId],
     );
   }
 
@@ -575,17 +571,17 @@ function ZoneOptionSheet({
         </div>
 
         <div className="flex flex-wrap gap-3 px-4 py-4">
-          {zoneNames.map((zone) => {
-            const on = draft.includes(zone);
+          {options.map((zone) => {
+            const on = draft.includes(zone.zoneId);
             return (
               <button
-                key={zone}
+                key={zone.zoneId}
                 type="button"
                 aria-pressed={on}
-                onClick={() => toggle(zone)}
+                onClick={() => toggle(zone.zoneId)}
                 className={`${CHIP_BASE} ${on ? CHIP_ON : CHIP_OFF}`}
               >
-                {zone}
+                {zone.name}
               </button>
             );
           })}
@@ -593,18 +589,20 @@ function ZoneOptionSheet({
 
         {draft.length > 0 ? (
           <div className="flex flex-wrap gap-2 px-5 pb-2">
-            {draft.map((zone) => (
-              <button
-                key={zone}
-                type="button"
-                aria-label={`${zone} 선택 해제`}
-                onClick={() => toggle(zone)}
-                className={`${CHIP_BASE} ${CHIP_ON}`}
-              >
-                {zone}
-                <Cross2Icon className="size-4 shrink-0" />
-              </button>
-            ))}
+            {options
+              .filter((zone) => draft.includes(zone.zoneId))
+              .map((zone) => (
+                <button
+                  key={zone.zoneId}
+                  type="button"
+                  aria-label={`${zone.name} 선택 해제`}
+                  onClick={() => toggle(zone.zoneId)}
+                  className={`${CHIP_BASE} ${CHIP_ON}`}
+                >
+                  {zone.name}
+                  <Cross2Icon className="size-4 shrink-0" />
+                </button>
+              ))}
           </div>
         ) : null}
 

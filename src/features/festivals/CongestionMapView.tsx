@@ -70,15 +70,20 @@ function buildBoothPinElement(
  */
 export function CongestionMapView({
   roadmap,
-  levelByBoothName,
-  selectedBoothName,
-  onSelectBooth,
+  levelByNodeId,
+  selectedNodeId,
+  onSelectNode,
 }: {
   roadmap: RoadmapResponse;
-  /** 부스 이름 → 혼잡도 등급. 배치도와 혼잡도 API는 id 체계가 달라 이름으로 잇는다. */
-  levelByBoothName: Map<string, BoothCongestionLevel | null>;
-  selectedBoothName: string | null;
-  onSelectBooth: (boothName: string | null) => void;
+  /**
+   * 배치도 노드 id(`publicId`) → 혼잡도 등급. 혼잡도 응답이 부스마다
+   * `roadmapNodePublicId`를 달고 오므로 부스 이름으로 맞춰 잇지 않는다.
+   * 이 필드를 아직 안 내려주는 서버에서는 비어 있고, 핀은 등급 없는 모양(테두리만)으로
+   * 그려진다 — 이름으로 대신 맞추면 같은 이름의 부스에 남의 등급이 묻어 나온다.
+   */
+  levelByNodeId: Map<string, BoothCongestionLevel | null>;
+  selectedNodeId: string | null;
+  onSelectNode: (nodeId: string | null) => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<KakaoMapInstance | null>(null);
@@ -175,10 +180,10 @@ export function CongestionMapView({
     const overlays: KakaoCustomOverlayInstance[] = [];
 
     boothPins.forEach((pin) => {
-      const dimmed = selectedBoothName !== null && selectedBoothName !== pin.name;
-      const element = buildBoothPinElement(pin, levelByBoothName.get(pin.name), dimmed);
+      const dimmed = selectedNodeId !== null && selectedNodeId !== pin.id;
+      const element = buildBoothPinElement(pin, levelByNodeId.get(pin.id), dimmed);
       element.addEventListener("click", () => {
-        onSelectBooth(selectedBoothName === pin.name ? null : pin.name);
+        onSelectNode(selectedNodeId === pin.id ? null : pin.id);
       });
       const pinOverlay = new window.kakao.maps.CustomOverlay({
         position: new window.kakao.maps.LatLng(pin.point.lat, pin.point.lng),
@@ -192,7 +197,7 @@ export function CongestionMapView({
     });
 
     return () => overlays.forEach((item) => item.setMap(null));
-  }, [map, boothPins, levelByBoothName, selectedBoothName, onSelectBooth]);
+  }, [map, boothPins, levelByNodeId, selectedNodeId, onSelectNode]);
 
   if (sdkError) {
     return (
