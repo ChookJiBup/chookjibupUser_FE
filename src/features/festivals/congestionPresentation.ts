@@ -49,8 +49,7 @@ const LEVEL_RANK: Record<BoothCongestionLevel, number> = { LOW: 0, MEDIUM: 1, HI
  *
  * <p>필드가 아예 없는 응답(= 이 필드를 내려주기 전 서버)일 때만 예전과 똑같은 규칙으로
  * 대신 계산한다. 규칙이 서버와 글자 그대로 같으므로 값이 어긋날 일이 없고, 배포가
- * 엇갈린 잠깐 동안 화면이 「정보 없음」으로 비지 않는다. 반대로 구역(zone)은 예전 방식
- * (부스 이름 맞추기)이 틀린 값을 만들 수 있어서 대체 계산을 두지 않았다.</p>
+ * 엇갈린 잠깐 동안 화면이 「정보 없음」으로 비지 않는다.</p>
  */
 export function resolveOverallLevel(
   congestion: FestivalCongestionResponse | null | undefined,
@@ -67,44 +66,6 @@ function deriveOverallLevel(booths: BoothCongestionResponse[]): BoothCongestionL
     .filter((level): level is BoothCongestionLevel => level !== null);
   if (levels.length === 0) return null;
   return levels.reduce((worst, level) => (LEVEL_RANK[level] > LEVEL_RANK[worst] ? level : worst));
-}
-
-/** 구역 필터의 선택지 하나. 고를 때는 이름이 아니라 zoneId로 잡는다(이름은 겹칠 수 있다). */
-export interface ZoneOption {
-  zoneId: string;
-  name: string;
-}
-
-/**
- * 구역 옵션 시트에 띄울 구역들.
- *
- * <p>혼잡도 응답의 부스가 이미 자기 구역을 달고 오므로 축제 상세(배치도)를 따로 부르지
- * 않는다. 예전에는 배치도를 받아 부스 «이름»으로 구역을 맞춰 붙였는데, 이름이 조금만
- * 달라도 구역이 안 붙었고 배치도가 공개 전이면 필터 자체가 사라졌다.</p>
- *
- * <p>구역이 없는 부스(미지정)는 선택지로 만들지 않는다 — 고를 수 있는 건 「어느 구역」
- * 뿐이고, 미지정만 따로 보려는 요구는 아직 화면에 없다.</p>
- */
-export function collectZoneOptions(booths: BoothCongestionResponse[]): ZoneOption[] {
-  const options: ZoneOption[] = [];
-  const seen = new Set<string>();
-  booths.forEach((booth) => {
-    const zoneId = booth.zoneId;
-    if (!zoneId || seen.has(zoneId)) return;
-    seen.add(zoneId);
-    options.push({ zoneId, name: booth.zoneName ?? "이름 없는 구역" });
-  });
-  return options;
-}
-
-/** 구역 칩에 적을 요약 문구. 여러 개를 다 적으면 칩이 화면 밖으로 밀려난다. */
-export function formatZoneChipLabel(options: ZoneOption[], selectedZoneIds: string[]): string {
-  const names = options
-    .filter((option) => selectedZoneIds.includes(option.zoneId))
-    .map((option) => option.name);
-  if (names.length === 0) return "전체 구역";
-  if (names.length === 1) return names[0];
-  return `${names[0]} 외 ${names.length - 1}`;
 }
 
 /**
