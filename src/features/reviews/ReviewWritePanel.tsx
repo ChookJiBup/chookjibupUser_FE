@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { CheckCircledIcon } from "@radix-ui/react-icons";
@@ -39,6 +40,8 @@ function ReviewWritePanelInner({ festivalId }: { festivalId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isOnsite = searchParams.get("source") === "qr";
+  const reviewUrl = `/festivals/${festivalId}/review${isOnsite ? "?source=qr" : ""}`;
+  const loginUrl = `/login?next=${encodeURIComponent(reviewUrl)}`;
 
   const hasHydrated = useUserAuthHasHydrated();
   const session = useUserAuthStore((state) => state.session);
@@ -52,9 +55,9 @@ function ReviewWritePanelInner({ festivalId }: { festivalId: string }) {
     // 일반 접근일 때만 예전처럼 로그인 화면으로 보낸다.
     if (isOnsite) return;
     if (hasHydrated && !session) {
-      router.replace("/login");
+      router.replace(loginUrl);
     }
-  }, [isOnsite, hasHydrated, session, router]);
+  }, [isOnsite, hasHydrated, session, router, loginUrl]);
 
   const festivalQuery = useQuery({
     queryKey: ["festival", festivalId],
@@ -112,6 +115,12 @@ function ReviewWritePanelInner({ festivalId }: { festivalId: string }) {
             축제 현장 QR코드로 접속했어요. 로그인 없이 바로 리뷰를 남길 수 있어요.
           </p>
         </div>
+      ) : null}
+
+      {isOnsite && hasHydrated && !session ? (
+        <Link href={loginUrl} className="body-small-bold mx-5 mt-3 text-point-600 underline">
+          로그인하고 내 계정으로 리뷰 남기기
+        </Link>
       ) : null}
 
       <form

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { getCurrentUser, kakaoLogin } from "@/features/auth/api";
 import { getKakaoRedirectUri } from "@/features/auth/kakao";
+import { takeLoginReturn } from "@/features/auth/loginReturn";
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { useUserAuthStore } from "@/store/userAuthStore";
 
@@ -24,7 +25,7 @@ function KakaoCallbackInner() {
     },
     onSuccess: (result) => {
       setSession(result);
-      router.replace("/");
+      router.replace(takeLoginReturn());
     },
   });
 
