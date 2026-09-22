@@ -112,6 +112,24 @@ function readPolygonPoints(value: unknown): LatLngPoint[] | null {
   return points;
 }
 
+export function readQueuePath(raw: string | null | undefined): LatLngPoint[] | null {
+  if (!raw) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) return null;
+  const points: LatLngPoint[] = [];
+  for (const item of parsed) {
+    const point = readPoint(item);
+    if (!point) return null;
+    points.push(point);
+  }
+  return points;
+}
+
 /** 이름이 없는 노드에 대신 보여줄 라벨. */
 const NODE_TYPE_LABEL: Record<RoadmapNodeType, string> = {
   BOOTH: "부스",

@@ -30,6 +30,13 @@ declare global {
           fillColor?: string;
           fillOpacity?: number;
         }) => KakaoCustomOverlayInstance;
+        Polyline: new (options: {
+          path: KakaoLatLng[];
+          strokeWeight?: number;
+          strokeColor?: string;
+          strokeOpacity?: number;
+          strokeStyle?: string;
+        }) => KakaoCustomOverlayInstance;
         /** 지도 투영 좌표에 직접 그리는 오버레이의 베이스 클래스. */
         AbstractOverlay: KakaoAbstractOverlayConstructor;
         event: {

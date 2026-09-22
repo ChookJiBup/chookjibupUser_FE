@@ -14,6 +14,7 @@ import {
   collectRoadmapPins,
   readBoundary,
   readOverlay,
+  readQueuePath,
   type LatLngPoint,
   type RoadmapPin,
 } from "./mapPresentation";
@@ -26,29 +27,32 @@ const FIT_PADDING = 16;
 const MIN_LEVEL = 1;
 const MAX_LEVEL = 8;
 
-/** 부스별 혼잡도. 배치도 노드와 혼잡도 API는 id 체계가 달라 부스 이름으로 잇는다. */
+/**
+ * 부스별 혼잡도 + 대기열(줄) 정보. key는 그 부스가 찍힌 배치도 노드의 공개 UUID다
+ * (부스 이름은 겹칠 수 있어 매칭 키로 안 쓴다).
+ */
 export interface BoothCongestionHint {
   level: BoothCongestionLevel | null;
   waitMinutes: number | null;
+  /** 줄끝 좌표. 관리자가 아직 줄을 안 그렸으면 null. */
+  queueTailLatitude: number | null;
+  queueTailLongitude: number | null;
+  /** 줄 길이(미터). */
+  queueTailMeters: number | null;
+  /** 줄이 그려진 경로(위경도 점들)의 원문 JSON. */
+  queuePath: string | null;
 }
 
-/*
-  혼잡도 색은 목록·랭킹 배지(bg-secondary-600 / bg-point-600 / bg-error)와 같은 값이어야
-  한다 — 여기 hex를 따로 적어 두었더니 같은 화면에서 "여유"가 지도에선 초록, 목록에선
-  파랑으로 보였다. 카카오맵 핀은 리액트 밖에서 만드는 DOM이라 Tailwind 클래스를 붙일 수
-  없으므로, 토큰의 실제 색값이 있는 globals.css :root 변수를 인라인 스타일에서 그대로
-  읽는다. 색값을 이 파일에 다시 적지 않는 것이 요점이다 — 그래야 토큰이 바뀌어도 지도와
-  목록이 다시 어긋나지 않는다.
-*/
 const CONGESTION_COLOR: Record<BoothCongestionLevel, string> = {
   LOW: "var(--secondary-600)",
   MEDIUM: "var(--point-600)",
   HIGH: "var(--red-500)",
 };
 
-/** 혼잡도와 무관하게 "부스"임을 나타내는 색. 시설(화장실·입구 등)은 회색으로 둔다. */
 const BOOTH_COLOR = "var(--point-600)";
 const FACILITY_COLOR = "#52525b";
+/** 대기줄 선/화살표/길이 라벨 색. 구역(주황)·혼잡도 배지 색과 겹치지 않는 파란 계열. */
+const QUEUE_COLOR = "#2563eb";
 
 const CONGESTION_LABEL: Record<BoothCongestionLevel, string> = {
   LOW: "여유",
@@ -63,20 +67,6 @@ function buildPinElement(pin: RoadmapPin, congestion?: BoothCongestionHint): HTM
   button.setAttribute("aria-label", pin.name);
   button.style.cssText = "display:block;padding:0;border:0;background:transparent;cursor:pointer;";
 
-  /*
-    전부 같은 동그라미로 찍었더니 부스와 화장실·입구가 지도에서 구분되지 않았다.
-    관리자 부스맵과 같은 유형 아이콘을 넣고, 부스는 포인트 색·시설은 회색으로 둔다.
-  */
-  /*
-    혼잡도가 들어온 부스는 그 색으로 채운다 — 대기시간을 보려고 목록으로 내려갔다
-    다시 지도로 올라오지 않아도 되게.
-
-    혼잡도가 아직 없는 부스는 채우지 않고 부스 색 테두리만 남긴다("채움 = 등급 있음,
-    비움 = 아직 없음"). 예전에는 기본색이 MEDIUM과 같은 주황이라, 혼잡도 데이터가 아예
-    없는 축제가 지도에서는 "모든 부스가 보통"으로 읽혔다. 색을 하나 더 만들지 않은 것은
-    남는 색(회색)이 시설 핀과 겹치는 데다, 등급이 없더라도 부스라는 사실은 계속 보여야
-    하기 때문이다.
-  */
   const marker = document.createElement("span");
   const shape =
     "display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:9999px;box-shadow:0 1px 3px rgba(0,0,0,0.3);";
@@ -110,7 +100,6 @@ function buildLabelElement(pin: RoadmapPin, congestion?: BoothCongestionHint): H
         : `${CONGESTION_LABEL[congestion.level]} · 약 ${congestion.waitMinutes}분`;
     label.appendChild(detail);
   } else if (pin.isBooth) {
-    // 비어 있는 핀을 눌렀을 때 "왜 색이 없는지"를 말로도 알려 준다.
     const detail = document.createElement("span");
     detail.style.cssText = "display:block;margin-top:2px;color:#71717b;";
     detail.textContent = "혼잡도 정보 없음";
@@ -119,9 +108,36 @@ function buildLabelElement(pin: RoadmapPin, congestion?: BoothCongestionHint): H
   return label;
 }
 
+/** 두 점 사이의 화면상 방향(도, 북쪽=0·시계방향). 짧은 거리라 평면 근사로 충분하다. */
+function bearingDeg(from: LatLngPoint, to: LatLngPoint): number {
+  const dLat = to.lat - from.lat;
+  const dLng = to.lng - from.lng;
+  return (Math.atan2(dLng, dLat) * 180) / Math.PI;
+}
+
+/** 줄끝에 띄우는 방향 화살표 + 길이 라벨. 화살표는 위(북쪽)를 가리키게 만든 뒤 회전시킨다. */
+function buildQueueTailElement(meters: number | null, heading: number): HTMLDivElement {
+  const wrapper = document.createElement("div");
+  wrapper.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px;";
+
+  const arrow = document.createElement("div");
+  arrow.style.cssText = `width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:12px solid ${QUEUE_COLOR};transform:rotate(${heading}deg);filter:drop-shadow(0 1px 1px rgba(0,0,0,0.35));`;
+  wrapper.appendChild(arrow);
+
+  if (meters !== null) {
+    const label = document.createElement("span");
+    label.style.cssText = `border-radius:9999px;background:${QUEUE_COLOR};padding:1px 6px;font-size:11px;line-height:1.4;color:white;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.25);`;
+    label.textContent = `${meters}m`;
+    wrapper.appendChild(label);
+  }
+
+  return wrapper;
+}
+
 /**
  * 부스지도 탭의 카카오맵. 관리자가 맞춰 둔 부지 경계와 팜플렛을 **읽기 전용**으로 얹고,
- * 좌표가 있는 부스·시설을 점으로 찍는다.
+ * 좌표가 있는 부스·시설을 점으로 찍는다. 좌측 상단 토글로 부스별 대기줄(방향·길이)도
+ * 켜고 끌 수 있다 — 기본은 꺼짐(지금까지처럼 부스 위치만 보이는 화면)이다.
  *
  * 경계나 팜플렛이 없거나 이미지가 안 열려도 지도와 부스 점은 그대로 뜬다 —
  * 표시 정보 하나가 없다고 배치도 화면 전체가 죽으면 안 된다.
@@ -135,13 +151,8 @@ export function RoadmapMapView({
 }: {
   roadmap: RoadmapResponse;
   height?: number;
-  /** 부스 이름 → 혼잡도. 없으면 예전처럼 이름만 보여준다. */
-  /** 배치도 노드 id(`publicId`) → 혼잡도. 부스 이름으로 맞춰 잇지 않는다(같은 이름이 있을 수 있다). */
+  /** 배치도 노드 publicId → 혼잡도/대기열. 없으면 예전처럼 위치만 보여준다. */
   congestionByNodeId?: Map<string, BoothCongestionHint>;
-  /*
-    지금 고른 부스. 지도와 아래 목록이 같은 값을 보게 바깥에서 들고 있는다 —
-    지도가 따로 상태를 쥐면 목록에서 고른 부스로 지도가 따라가지 못한다.
-  */
   selectedNodeId?: string | null;
   onSelectNode?: (nodeId: string | null) => void;
 }) {
@@ -150,6 +161,7 @@ export function RoadmapMapView({
   const [map, setMap] = useState<KakaoMapInstance | null>(null);
   const [sdkError, setSdkError] = useState<string | null>(null);
   const [imageFailed, setImageFailed] = useState(false);
+  const [showQueues, setShowQueues] = useState(false);
 
   const boundary = useMemo(() => readBoundary(roadmap.presentation), [roadmap.presentation]);
   const overlay = useMemo(() => readOverlay(roadmap.presentation), [roadmap.presentation]);
@@ -161,7 +173,33 @@ export function RoadmapMapView({
     [pins, selectedNodeId],
   );
 
-  // 처음 화면에 담을 범위. 경계 > 팜플렛 귀퉁이 > 부스 점 순으로 우선한다.
+  /*
+    부스별 대기줄 경로. path_geometry가 있으면 그 경로를, 없고 줄끝 좌표만 있으면
+    부스 위치 → 줄끝의 직선 2점을 쓴다. 둘 다 없는 부스는 대기줄을 그리지 않는다.
+  */
+  const queueLines = useMemo(() => {
+    if (!congestionByNodeId) return [];
+    return pins
+      .filter((pin) => pin.isBooth)
+      .map((pin) => {
+        const hint = congestionByNodeId.get(pin.id);
+        if (!hint) return null;
+        const parsedPath = readQueuePath(hint.queuePath);
+        let path: LatLngPoint[] | null = null;
+        if (parsedPath && parsedPath.length >= 2) {
+          path = parsedPath;
+        } else if (hint.queueTailLatitude !== null && hint.queueTailLongitude !== null) {
+          path = [pin.point, { lat: hint.queueTailLatitude, lng: hint.queueTailLongitude }];
+        }
+        if (!path) return null;
+        return { boothId: pin.id, path, meters: hint.queueTailMeters };
+      })
+      .filter(
+        (item): item is { boothId: string; path: LatLngPoint[]; meters: number | null } =>
+          item !== null,
+      );
+  }, [pins, congestionByNodeId]);
+
   const fitPoints = useMemo<LatLngPoint[]>(() => {
     if (boundary) return boundary;
     if (overlay)
@@ -178,7 +216,6 @@ export function RoadmapMapView({
     return { lat: sum.lat / fitPoints.length, lng: sum.lng / fitPoints.length };
   }, [fitPoints]);
 
-  // 지도는 최초 1회만 만든다 — 다시 만들면 방문객이 맞춰 둔 확대/이동이 초기화된다.
   useEffect(() => {
     if (!center) return;
     let cancelled = false;
@@ -215,7 +252,6 @@ export function RoadmapMapView({
     }
   }, [map, fitPoints]);
 
-  // 부지 경계 폴리곤.
   useEffect(() => {
     if (!map || !boundary) return;
     const polygon = new window.kakao.maps.Polygon({
@@ -230,10 +266,6 @@ export function RoadmapMapView({
     return () => polygon.setMap(null);
   }, [map, boundary]);
 
-  /*
-    구역 도형. 관리자가 묶어 둔 구역을 방문객도 볼 수 있어야 «로스터리 마켓존이 어디»가
-    성립한다. 예전에는 이 도형이 시설 칩 줄에 이름만 흘러 들어가 있었다.
-  */
   useEffect(() => {
     if (!map || areas.length === 0) return;
     const drawn = areas.map((area) => {
@@ -252,7 +284,6 @@ export function RoadmapMapView({
     return () => drawn.forEach((polygon) => polygon.setMap(null));
   }, [map, areas]);
 
-  // 구역 이름표. 도형만 칠해 두면 어느 구역인지 알 수 없다.
   useEffect(() => {
     if (!map || areas.length === 0) return;
     const overlays: KakaoCustomOverlayInstance[] = [];
@@ -274,7 +305,6 @@ export function RoadmapMapView({
     return () => overlays.forEach((item) => item.setMap(null));
   }, [map, areas]);
 
-  // 팜플렛 이미지.
   useEffect(() => {
     if (!map || !overlay || imageFailed) return;
     const handle = createPamphletOverlay({
@@ -289,7 +319,6 @@ export function RoadmapMapView({
     return () => handle?.destroy();
   }, [map, overlay, boundary, imageFailed]);
 
-  // 부스·시설 점. 선택 상태는 따로 그리므로 여기서 다시 만들지 않는다.
   useEffect(() => {
     if (!map) return;
     const overlays: KakaoCustomOverlayInstance[] = [];
@@ -313,7 +342,42 @@ export function RoadmapMapView({
     return () => overlays.forEach((item) => item.setMap(null));
   }, [map, pins, congestionByNodeId, selectedNodeId, onSelectNode]);
 
-  // 선택한 점 위에 뜨는 이름표.
+  /*
+    대기줄(방향·길이). 토글이 켜져 있을 때만 그린다 — 기본은 꺼진 상태라 지금까지처럼
+    부스 위치만 보이는 화면이 유지된다. 줄마다 경로 폴리라인 + 줄끝의 방향 화살표와
+    길이 라벨을 같이 그린다.
+  */
+  useEffect(() => {
+    if (!map || !showQueues || queueLines.length === 0) return;
+    const drawn: KakaoCustomOverlayInstance[] = [];
+
+    queueLines.forEach(({ path, meters }) => {
+      const polyline = new window.kakao.maps.Polyline({
+        path: path.map((point) => new window.kakao.maps.LatLng(point.lat, point.lng)),
+        strokeWeight: 4,
+        strokeColor: QUEUE_COLOR,
+        strokeOpacity: 0.85,
+        strokeStyle: "solid",
+      });
+      polyline.setMap(map);
+      drawn.push(polyline);
+
+      const tail = path[path.length - 1];
+      const before = path[path.length - 2];
+      const heading = bearingDeg(before, tail);
+      const tailOverlay = new window.kakao.maps.CustomOverlay({
+        position: new window.kakao.maps.LatLng(tail.lat, tail.lng),
+        content: buildQueueTailElement(meters, heading),
+        yAnchor: 1,
+        zIndex: 8,
+      });
+      tailOverlay.setMap(map);
+      drawn.push(tailOverlay);
+    });
+
+    return () => drawn.forEach((item) => item.setMap(null));
+  }, [map, showQueues, queueLines]);
+
   useEffect(() => {
     if (!map || !selected) return;
     const labelOverlay = new window.kakao.maps.CustomOverlay({
@@ -326,10 +390,6 @@ export function RoadmapMapView({
     return () => labelOverlay.setMap(null);
   }, [map, selected, congestionByNodeId]);
 
-  /*
-    고른 부스로 지도를 옮긴다. 아래 목록에서 골랐을 때 «그 부스가 어디인지» 보이지 않던
-    것을 잇는 부분이다.
-  */
   useEffect(() => {
     if (!map || !selected) return;
     map.panTo(new window.kakao.maps.LatLng(selected.point.lat, selected.point.lng));
@@ -353,7 +413,23 @@ export function RoadmapMapView({
         style={{ height }}
       >
         <div ref={containerRef} className="size-full" />
-        {/* 손으로 벌리기 어려운 상황(마우스 휠은 페이지가 스크롤된다)을 위한 확대/축소. */}
+        {/* 대기줄(방향·길이) 토글. 그릴 대기줄이 하나도 없으면 아예 안 보여준다. */}
+        {map && queueLines.length > 0 ? (
+          <div className="absolute top-2 left-2 z-10">
+            <button
+              type="button"
+              onClick={() => setShowQueues((current) => !current)}
+              aria-pressed={showQueues}
+              className={`body-caption rounded-lg border px-3 py-1.5 shadow-sm ${
+                showQueues
+                  ? "border-transparent bg-[#2563eb] text-white"
+                  : "border-zinc-200 bg-white text-zinc-700"
+              }`}
+            >
+              {showQueues ? "대기줄 숨기기" : "대기줄 보기"}
+            </button>
+          </div>
+        ) : null}
         {map ? (
           <div className="absolute top-2 right-2 z-10 flex flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
             <button
