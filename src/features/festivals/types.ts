@@ -164,6 +164,10 @@ export interface BoothCongestionResponse {
    * 안 된 부스(드묾)면 null.
    */
   roadmapNodePublicId: string | null;
+  /** 묶여 있는 구역. 구역 미지정이면 null이며 구버전 서버에서는 없을 수 있다. */
+  zoneId?: string | null;
+  /** 구역 이름. zoneId가 null이면 함께 null이다. */
+  zoneName?: string | null;
   congestionLevel: BoothCongestionLevel | null;
   waitMinutes: number | null;
   updatedAt: string | null;
