@@ -555,6 +555,10 @@ function RoadmapTab({
       map.set(booth.roadmapNodePublicId, {
         level: booth.congestionLevel,
         waitMinutes: booth.waitMinutes,
+        queueTailLatitude: booth.queueTailLatitude,
+        queueTailLongitude: booth.queueTailLongitude,
+        queueTailMeters: booth.queueTailMeters,
+        queuePath: booth.queuePath,
       });
     });
     return map;

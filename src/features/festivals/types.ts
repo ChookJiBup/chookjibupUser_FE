@@ -159,18 +159,22 @@ export interface BoothCongestionResponse {
   boothId: number;
   boothName: string;
   /**
-   * 이 부스의 배치도 노드 식별자. `roadmap.zones[].booths[].publicId`와 같은 값이라
-   * 지도 핀과 혼잡도를 부스 «이름»이 아니라 이 값으로 잇는다. 지도에 찍히지 않은
-   * 부스는 null이고, 이 필드를 아직 안 내려주는 구버전 서버에서는 undefined다.
+   * 이 부스가 찍힌 배치도 노드의 공개 UUID. 배치도 응답의 booth.publicId와 이 값으로
+   * 잇는다 — 부스 이름은 겹칠 수 있어 매칭 키로 안 쓴다. 배치도 노드에 아직 연결이
+   * 안 된 부스(드묾)면 null.
    */
-  roadmapNodePublicId?: string | null;
-  /** 묶여 있는 구역. 구역 미지정이면 null, 구버전 서버에서는 undefined. */
-  zoneId?: string | null;
-  /** 구역 이름. zoneId가 null이면 같이 null. */
-  zoneName?: string | null;
+  roadmapNodePublicId: string | null;
   congestionLevel: BoothCongestionLevel | null;
   waitMinutes: number | null;
   updatedAt: string | null;
+  /** 대기열 줄끝 좌표. 관리자가 아직 줄을 안 그렸으면 null. */
+  queueTailLatitude: number | null;
+  queueTailLongitude: number | null;
+  /** 줄 길이(미터). */
+  queueTailMeters: number | null;
+  /** 줄이 그려진 경로(위경도 점들)의 원문 JSON 문자열. 지도에 선으로 그릴 때 직접 파싱한다. */
+  queuePath: string | null;
+  queueUpdatedAt: string | null;
 }
 
 /**
@@ -182,7 +186,7 @@ export interface FestivalCongestionResponse {
   /**
    * 축제 한 곳을 대표하는 혼잡도. 부스 등급 중 가장 높은 값을 서버가 계산해 준다.
    * 등급이 매겨진 부스가 하나도 없으면 null이고, 이 필드를 아직 안 내려주는
-   * 구버전 서버에서는 undefined다(`resolveOverallLevel`가 같은 규칙으로 대신 계산한다).
+   * 구버전 서버에서는 undefined다(`resolveOverallLevel`이 같은 규칙으로 대신 계산한다).
    */
   congestionLevel?: BoothCongestionLevel | null;
   activeQueueCount: number | null;
