@@ -68,6 +68,35 @@ function deriveOverallLevel(booths: BoothCongestionResponse[]): BoothCongestionL
   return levels.reduce((worst, level) => (LEVEL_RANK[level] > LEVEL_RANK[worst] ? level : worst));
 }
 
+/** 구역 필터의 선택지 하나. 이름이 중복될 수 있어 식별자는 zoneId를 사용한다. */
+export interface ZoneOption {
+  zoneId: string;
+  name: string;
+}
+
+/** 혼잡도 응답에 포함된 구역을 중복 없이 필터 선택지로 변환한다. */
+export function collectZoneOptions(booths: BoothCongestionResponse[]): ZoneOption[] {
+  const options: ZoneOption[] = [];
+  const seen = new Set<string>();
+  booths.forEach((booth) => {
+    const zoneId = booth.zoneId;
+    if (!zoneId || seen.has(zoneId)) return;
+    seen.add(zoneId);
+    options.push({ zoneId, name: booth.zoneName ?? "이름 없는 구역" });
+  });
+  return options;
+}
+
+/** 여러 구역을 선택해도 칩이 화면을 밀어내지 않도록 첫 이름과 나머지 개수만 표시한다. */
+export function formatZoneChipLabel(options: ZoneOption[], selectedZoneIds: string[]): string {
+  const names = options
+    .filter((option) => selectedZoneIds.includes(option.zoneId))
+    .map((option) => option.name);
+  if (names.length === 0) return "전체 구역";
+  if (names.length === 1) return names[0];
+  return `${names[0]} 외 ${names.length - 1}`;
+}
+
 /**
  * 지도 범례의 색 점. 지도 핀이 쓰는 색(globals.css의 --secondary-600/--point-600/--red-500)과
  * 같은 토큰이어야 범례와 핀이 어긋나지 않는다.
