@@ -6,13 +6,7 @@ import { CheckCircledIcon, CrossCircledIcon } from "@radix-ui/react-icons";
 export type ToastTone = "success" | "error";
 
 /** 화면 하단 토스트. 카카오맵류 스낵바처럼 짧게 떴다 사라진다. */
-export function SuccessToast({
-  message,
-  tone = "success",
-}: {
-  message: string;
-  tone?: ToastTone;
-}) {
+export function SuccessToast({ message, tone = "success" }: { message: string; tone?: ToastTone }) {
   return (
     <div
       role={tone === "error" ? "alert" : "status"}

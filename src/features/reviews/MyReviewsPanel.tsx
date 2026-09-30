@@ -9,7 +9,7 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   Pencil2Icon,
-  TrashIcon
+  TrashIcon,
 } from "@radix-ui/react-icons";
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { parseServerDateTime } from "@/lib/serverTime";
@@ -81,9 +81,7 @@ export function MyReviewsPanel() {
   const items = useMemo(() => {
     const source = query.data?.items ?? [];
     const filtered =
-      filter === "ALL"
-        ? source
-        : source.filter((item) => item.festivalProgressStatus === filter);
+      filter === "ALL" ? source : source.filter((item) => item.festivalProgressStatus === filter);
     const sorted = [...filtered];
     if (sort === "NAME") {
       sorted.sort((a, b) => a.festivalName.localeCompare(b.festivalName, "ko"));

@@ -155,9 +155,7 @@ export function WishlistPanel() {
       setEditMode(false);
       setDeleteDialogOpen(false);
       showToast(
-        ids.length === 1
-          ? "저장을 취소했어요."
-          : `저장한 축제 ${ids.length}개를 삭제했어요.`,
+        ids.length === 1 ? "저장을 취소했어요." : `저장한 축제 ${ids.length}개를 삭제했어요.`,
       );
       queryClient.invalidateQueries({ queryKey: ["my-wishlist"] });
       queryClient.invalidateQueries({ queryKey: ["festivals"] });
@@ -165,7 +163,10 @@ export function WishlistPanel() {
     },
     onError: (error) => {
       setDeleteDialogOpen(false);
-      showToast(getApiErrorMessage(error, "저장을 삭제하지 못했어요. 다시 시도해 주세요."), "error");
+      showToast(
+        getApiErrorMessage(error, "저장을 삭제하지 못했어요. 다시 시도해 주세요."),
+        "error",
+      );
     },
   });
 

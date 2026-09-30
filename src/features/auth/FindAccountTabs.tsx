@@ -31,7 +31,9 @@ export function FindAccountTabs({ value, onChange }: FindAccountTabsProps) {
             variant="ghost"
             aria-pressed={value === tab}
             className={
-              value === tab ? "bg-white text-point-600 font-semibold hover:bg-white" : "text-zinc-400"
+              value === tab
+                ? "bg-white text-point-600 font-semibold hover:bg-white"
+                : "text-zinc-400"
             }
             onClick={() => onChange(tab)}
           >
