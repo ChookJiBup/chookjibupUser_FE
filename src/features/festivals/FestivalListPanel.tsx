@@ -10,6 +10,7 @@ import { getApiErrorMessage } from "@/lib/api/httpError";
 import { getMyWishlist } from "@/features/wishlist/api";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
 import { FestivalImage } from "./FestivalImage";
+import { FestivalStatusFilterBar } from "./FestivalStatusFilterBar";
 import { WishlistHeart } from "./FestivalCard";
 import { getFestivals } from "./api";
 import { REGIONS } from "./regions";
@@ -112,8 +113,14 @@ export function FestivalListPanel() {
   return (
     <div className="-mt-4 min-w-0">
       <h1 className="sr-only">축제 둘러보기</h1>
-      <div className="sticky top-[var(--app-header-height)] z-10 -mx-5 flex h-[46px] items-center border-b border-zinc-100 bg-white px-5">
-        <div className="relative mr-2 flex h-4 shrink-0 items-center border-r-[1px] border-zinc-200 pr-4">
+      <FestivalStatusFilterBar
+        className="sticky top-[var(--app-header-height)] z-10 -mx-5"
+        value={tab}
+        onChange={(value) => {
+          setTab(value as FilterTab);
+          setVisibleCount(4);
+        }}
+        leading={
           <div className="relative">
             <select
               aria-label="축제 지역"
@@ -137,31 +144,20 @@ export function FestivalListPanel() {
               className="pointer-events-none absolute right-0 top-1/2 size-4 -translate-y-1/2 text-zinc-800"
             />
           </div>
-        </div>
-        <div
-          key={resetVersion}
-          className="flex h-full min-w-0 gap-3 overflow-x-auto"
-          aria-label="축제 상태 필터"
-        >
-          {TABS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={tab === value}
-              onClick={() => {
-                setTab(value);
-                setVisibleCount(4);
-              }}
-              className={`body-small flex h-full shrink-0 items-center gap-1.5 border-b-2 px-3 ${tab === value ? "border-zinc-900 font-semibold text-zinc-900" : "border-transparent text-zinc-400"}`}
-            >
-              {value === "WISHLIST" && (
+        }
+        options={TABS.map(({ value, label }) => ({
+          value,
+          label: (
+            <>
+              {value === "WISHLIST" ? (
                 <HeartIcon filled aria-hidden className="size-4 text-red-500" />
-              )}
+              ) : null}
               {label}
-            </button>
-          ))}
-        </div>
-      </div>
+            </>
+          ),
+        }))}
+        key={resetVersion}
+      />
 
       {tab !== "WISHLIST" && (
         <>
