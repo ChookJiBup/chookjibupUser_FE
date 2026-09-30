@@ -49,14 +49,24 @@ export function FindEmailPanel() {
         label="이름"
         value={nickname}
         onChange={(event) => setNickname(event.target.value)}
-        placeholder="회원가입 때 입력한 이름"
+        placeholder="가입한 이름"
         autoComplete="name"
       />
       <Input
         label="생년월일"
         type="date"
+        min="1900-01-01"
+        max="9999-12-31"
         value={birthDate}
-        onChange={(event) => setBirthDate(event.target.value)}
+        onChange={(event) => {
+          const value = event.target.value;
+          // Chrome 등에서 연도 6자리 입력이 가능하므로 4자리로 제한
+          if (value) {
+            const year = value.slice(0, value.indexOf("-"));
+            if (year.length > 4) return;
+          }
+          setBirthDate(value);
+        }}
       />
 
       {mutation.isError ? (

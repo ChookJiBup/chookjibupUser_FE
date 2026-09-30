@@ -77,7 +77,7 @@ export function Header() {
               className="flex h-8 shrink-0 items-center"
             >
               {/* 로고가 워드마크를 겸한다. 자리를 비워 두던 회색 상자와 「축지법」 글자를 대신한다. */}
-              <Logo className="h-full w-auto text-point-500" />
+              <Logo className="h-6 w-auto text-point-500" />
             </Link>
           </div>
 

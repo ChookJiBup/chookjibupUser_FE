@@ -243,6 +243,7 @@ export function WishlistPanel() {
         <FestivalStatusFilterBar
           value={filter}
           onChange={(value) => setFilter(value as FilterTab)}
+          className={"sticky top-[var(--app-header-height)] z-10"}
           leading={
             <label className="relative flex items-center body-small text-zinc-700">
               <select
@@ -298,7 +299,7 @@ export function WishlistPanel() {
         <p className="body-regular text-zinc-500">찜한 축제가 없습니다.</p>
       ) : null}
       {query.data && allItems.length > 0 && items.length === 0 ? (
-        <p className="body-regular text-zinc-500">해당하는 축제가 없습니다.</p>
+        <p className="body-regular text-zinc-500 p-5">해당하는 축제가 없습니다.</p>
       ) : null}
 
       <div className="flex flex-col px-5">

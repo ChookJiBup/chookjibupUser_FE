@@ -45,10 +45,15 @@ export function ReviewsPanel({ festivalId }: { festivalId: string }) {
 
       {!isLoggedIn ? (
         <div className="flex flex-col gap-1 rounded-lg border border-zinc-100 p-3 text-zinc-950">
-          <p className="body-small-bold">리뷰는 현장 QR코드를 통해 작성할 수 있어요.</p>
-          <p className="body-caption">축제 현장에서 QR코드를 스캔해 주세요!</p>
+          <p className="body-small-bold">리뷰를 남기려면 로그인이 필요합니다.</p>
+          <p className="body-caption"><Link href={'/login'} className="text-point-600 underline">로그인</Link>을 해주세요!</p>
         </div>
-      ) : null}
+      ) : (
+          <div className="flex flex-col gap-1 rounded-lg border border-zinc-100 p-3 text-zinc-950">
+        <p className="body-small-bold">리뷰는 현장 QR코드를 통해 작성할 수 있어요.</p>
+        <p className="body-caption">축제 현장에서 QR코드를 스캔해 주세요!</p>
+      </div>
+      )}
 
       <ReviewAverage average={averageRating(items)} />
 

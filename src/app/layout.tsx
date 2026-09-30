@@ -36,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={`${pretendard.variable} ${roboto.variable} h-full antialiased`}>
-      <body className="min-h-dvh bg-zinc-100">
+      <body className="min-h-dvh bg-white">
         <Providers>{children}</Providers>
       </body>
     </html>

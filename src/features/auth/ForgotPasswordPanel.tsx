@@ -36,7 +36,7 @@ export function ForgotPasswordPanel() {
           메일함(스팸함도 확인)을 확인해주세요. 링크는 30분간 유효합니다.
         </p>
         <Link href="/login" className="body-regular-bold mt-2 text-primary">
-          로그인 화면으로
+          로그인
         </Link>
       </div>
     );

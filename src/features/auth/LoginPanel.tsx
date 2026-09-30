@@ -99,7 +99,7 @@ function LoginPanelInner() {
               variant="outline"
               size="lg"
               icon={<EnvelopeClosedIcon />}
-              className="body-large h-[51px] w-full gap-[6px] rounded-lg"
+              className="body-regular h-[51px] w-full gap-[6px] rounded-lg"
               onClick={() => setEmailMode(true)}
             >
               이메일로 로그인
