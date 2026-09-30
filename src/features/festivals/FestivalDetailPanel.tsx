@@ -6,7 +6,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DesktopIcon, ExternalLinkIcon, ReloadIcon } from "@radix-ui/react-icons";
+import {
+  DesktopIcon,
+  EnterFullScreenIcon,
+  ExternalLinkIcon,
+  ReloadIcon,
+} from "@radix-ui/react-icons";
 import { MapPinIcon } from "@/components/icons/MapPinIcon";
 import {
   API_ERROR_CODE,
@@ -44,6 +49,17 @@ const TAB_LABEL: Record<Tab, string> = {
   MAP: "부스지도",
   REVIEW: "리뷰",
 };
+
+/** 새로고침 직후에도 바뀐 시각을 확인할 수 있도록 조회 성공 시각을 초 단위로 표시한다. */
+function formatFetchedAt(timestamp: number): string {
+  const date = new Date(timestamp);
+  const hours = date.getHours();
+  const period = hours < 12 ? "오전" : "오후";
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${period} ${displayHour}:${minutes}:${seconds}`;
+}
 
 export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
   const [tab, setTab] = useState<Tab>("INFO");
@@ -288,6 +304,8 @@ function CongestionSummary({
   festivalId: string;
   query: ReturnType<typeof useQuery<FestivalCongestionResponse>>;
 }) {
+  const [isRefreshAnimating, setIsRefreshAnimating] = useState(false);
+
   if (query.isLoading) return null;
   if (query.fetchStatus === "paused" || query.isError) return null;
 
@@ -295,7 +313,24 @@ function CongestionSummary({
   if (!congestion || congestion.booths.length === 0) return null;
 
   const overallLevel = resolveOverallLevel(congestion);
-  const updatedAt = formatServerUpdatedAt(congestion.updatedAt);
+  // 서버 데이터가 직전과 같아도 다시 조회한 사실을 알 수 있도록 실제 조회 성공 시각을 쓴다.
+  const updatedAt =
+    query.dataUpdatedAt > 0
+      ? formatFetchedAt(query.dataUpdatedAt)
+      : formatServerUpdatedAt(congestion.updatedAt);
+  const isRefreshing = query.isFetching || isRefreshAnimating;
+
+  const refresh = async () => {
+    setIsRefreshAnimating(true);
+    try {
+      await Promise.all([
+        query.refetch(),
+        new Promise((resolve) => window.setTimeout(resolve, 600)),
+      ]);
+    } finally {
+      setIsRefreshAnimating(false);
+    }
+  };
 
   return (
     <>
@@ -303,13 +338,17 @@ function CongestionSummary({
         <p className="body-small-bold text-zinc-600">실시간 축제현황</p>
         <button
           type="button"
-          onClick={() => void query.refetch()}
-          disabled={query.isFetching}
+          onClick={() => void refresh()}
+          disabled={isRefreshing}
+          aria-busy={isRefreshing}
           aria-label="실시간 축제현황 새로고침"
           className="body-caption flex items-center gap-1 text-zinc-400 disabled:text-zinc-300"
         >
           {updatedAt ? `${updatedAt} 기준` : ""}
-          <ReloadIcon aria-hidden className={`size-3 ${query.isFetching ? "animate-spin" : ""}`} />
+          <ReloadIcon
+            aria-hidden
+            className={`size-3 ${isRefreshing ? "animate-spin motion-reduce:animate-none" : ""}`}
+          />
         </button>
       </div>
 
@@ -467,12 +506,23 @@ function RoadmapTab({
         </div>
 
         {canShowMap ? (
-          <RoadmapMapView
-            roadmap={roadmap}
-            congestionByNodeId={congestionByNodeId}
-            selectedNodeId={selectedNodeId}
-            onSelectNode={setSelectedNodeId}
-          />
+          <div className="relative">
+            <RoadmapMapView
+              roadmap={roadmap}
+              congestionByNodeId={congestionByNodeId}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={setSelectedNodeId}
+            />
+            {isOngoing ? (
+              <Link
+                href={`/festivals/${festivalId}/congestion?view=map`}
+                aria-label="실시간 현황 지도 전체 보기"
+                className="absolute right-2 bottom-2 z-20 flex size-10 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-950 shadow-sm"
+              >
+                <EnterFullScreenIcon aria-hidden className="size-4" />
+              </Link>
+            ) : null}
+          </div>
         ) : roadmap.mapImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img

@@ -145,12 +145,15 @@ function buildQueueTailElement(meters: number | null, heading: number): HTMLDivE
 export function RoadmapMapView({
   roadmap,
   height = 320,
+  fullScreen = false,
   congestionByNodeId,
   selectedNodeId = null,
   onSelectNode,
 }: {
   roadmap: RoadmapResponse;
   height?: number;
+  /** 실시간 현황 지도에서 부모 영역을 전체 채운는 모드. */
+  fullScreen?: boolean;
   /** 배치도 노드 publicId → 혼잡도/대기열. 없으면 예전처럼 위치만 보여준다. */
   congestionByNodeId?: Map<string, BoothCongestionHint>;
   selectedNodeId?: string | null;
@@ -398,8 +401,12 @@ export function RoadmapMapView({
   if (sdkError) {
     return (
       <div
-        className="flex w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50"
-        style={{ height }}
+        className={
+          fullScreen
+            ? "absolute inset-0 flex items-center justify-center bg-zinc-50"
+            : "flex w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50"
+        }
+        style={fullScreen ? undefined : { height }}
       >
         <p className="body-caption px-4 text-center text-zinc-400">{sdkError}</p>
       </div>
@@ -407,10 +414,14 @@ export function RoadmapMapView({
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className={fullScreen ? "absolute inset-0" : "flex flex-col gap-1"}>
       <div
-        className="relative w-full overflow-hidden rounded-lg border border-zinc-200"
-        style={{ height }}
+        className={
+          fullScreen
+            ? "relative size-full overflow-hidden"
+            : "relative w-full overflow-hidden rounded-lg border border-zinc-200"
+        }
+        style={fullScreen ? undefined : { height }}
       >
         <div ref={containerRef} className="size-full" />
         {/* 대기줄(방향·길이) 토글. 그릴 대기줄이 하나도 없으면 아예 안 보여준다. */}
