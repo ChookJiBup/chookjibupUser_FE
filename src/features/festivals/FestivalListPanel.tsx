@@ -223,7 +223,7 @@ export function FestivalListPanel() {
 
       {tab === "WISHLIST" && !isLoggedIn ? (
         <p className="body-small py-8 text-zinc-500">
-          <Link href="/login" className="underline">
+          <Link href="/login" className="text-point-600  underline">
             로그인
           </Link>
           하면 찜한 축제를 모아볼 수 있어요.

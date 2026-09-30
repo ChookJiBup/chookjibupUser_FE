@@ -21,7 +21,7 @@ export default function FindAccountPage() {
   const [tab, setTab] = useState<Tab>("EMAIL");
 
   return (
-    <div className="flex flex-1 flex-col gap-6 px-5 py-8">
+    <div className="flex flex-1 flex-col gap-6 py-8">
       <h1 className="heading-small text-center text-zinc-950">계정 찾기</h1>
 
       <div className="flex border-b border-zinc-200">
@@ -44,7 +44,7 @@ export default function FindAccountPage() {
       {tab === "EMAIL" ? <FindEmailPanel /> : <ForgotPasswordPanel />}
 
       <Link href="/login" className="body-small text-center text-zinc-400">
-        로그인 화면으로 돌아가기
+        로그인
       </Link>
     </div>
   );
