@@ -153,7 +153,7 @@ export function WishlistPanel() {
 
   return (
     <div className="-mx-5 -my-4 flex flex-col pb-24">
-      <div className="sticky top-0 z-40 flex min-h-[calc(48px+var(--app-safe-top))] items-end justify-between gap-2 border-b border-zinc-100 bg-white px-5 pb-3 pt-[calc(12px+var(--app-safe-top))]">
+      <div className="sticky top-0 z-40 flex min-h-[calc(48px+var(--app-safe-top))] items-end justify-between gap-2 bg-white px-5 pb-3 pt-[calc(12px+var(--app-safe-top))]">
         <div className="flex items-center gap-2">
           {editMode ? (
             <button type="button" onClick={toggleEditMode} aria-label="편집 취소">
@@ -220,8 +220,8 @@ export function WishlistPanel() {
                 onClick={() => setFilter(value)}
                 className={
                   filter === value
-                    ? "body-small-bold relative flex h-full shrink-0 items-center border-b-2 border-zinc-950 px-3 text-zinc-950"
-                    : "body-small flex h-full shrink-0 items-center border-b-2 border-transparent px-3 text-zinc-400"
+                    ? `body-small-bold relative flex h-full shrink-0 items-center border-b-2 border-zinc-950 pr-3 text-zinc-950 ${value === "ALL" ? "pl-5" : "pl-3"}`
+                    : `body-small flex h-full shrink-0 items-center border-b-2 border-transparent pr-3 text-zinc-400 ${value === "ALL" ? "pl-5" : "pl-3"}`
                 }
               >
                 {FILTER_LABEL[value]}
