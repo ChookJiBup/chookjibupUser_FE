@@ -47,7 +47,7 @@ export function Header() {
     router.push(`/login?next=${encodeURIComponent(returnTo)}`);
   }
 
-  if (pathname === "/wishlist") return null;
+  if (pathname === "/wishlist" || pathname === "/mypage/reviews") return null;
 
   return (
     <>
@@ -99,7 +99,7 @@ export function Header() {
               <Link
                 href="/mypage"
                 onClick={closeMenu}
-                className="flex h-8 min-w-0 items-center gap-2 rounded-full text-zinc-950 hover:bg-zinc-100"
+                className="-mr-2 flex h-10 min-w-0 items-center gap-2 rounded-full px-2 text-zinc-950 hover:bg-zinc-100"
               >
                 {session?.profileImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element

@@ -94,8 +94,7 @@ export function FestivalListPanel() {
       }
       return getFestivals({
         region: regionFilter,
-        status:
-          tab === "ONGOING" || tab === "UPCOMING" || tab === "COMPLETED" ? tab : undefined,
+        status: tab === "ONGOING" || tab === "UPCOMING" || tab === "COMPLETED" ? tab : undefined,
         sort: "VIEW_COUNT",
         page: pageParam,
         size: FEED_PAGE_SIZE,

@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CheckCircledIcon, ChevronLeftIcon, Pencil2Icon, TrashIcon } from "@radix-ui/react-icons";
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { parseServerDateTime } from "@/lib/serverTime";
 import { StarRating } from "@/components/ui/StarRating";
+import { SubpageHeader } from "@/components/layout/SubpageHeader";
 import { FestivalThumbnail, StatusBadge, formatDateRange } from "@/features/festivals/FestivalCard";
 import { deleteReview, getMyReviews, updateReview } from "./api";
 import type { MyReviewResponse } from "./types";
@@ -19,6 +21,7 @@ import type { MyReviewResponse } from "./types";
  * 한 번에 하나의 항목만 수정 모드로 들어갈 수 있다 — editingReviewId로 관리한다.
  */
 export function MyReviewsPanel() {
+  const router = useRouter();
   const query = useQuery({
     queryKey: ["my-reviews"],
     queryFn: () => getMyReviews(0, 100),
@@ -28,37 +31,41 @@ export function MyReviewsPanel() {
   const items = query.data?.items ?? [];
 
   return (
-    <div className="flex flex-col pb-24">
-      <div className="flex items-center gap-2 border-b border-zinc-100 py-3">
-        <Link href="/mypage" aria-label="뒤로가기">
-          <ChevronLeftIcon className="size-5 text-zinc-700" />
-        </Link>
-        <h1 className="body-large-bold text-zinc-950">내가 쓴 리뷰</h1>
-      </div>
+    <div className="-mx-5 -my-4 flex flex-col pb-24">
+      <SubpageHeader
+        title="내가 쓴 리뷰"
+        leading={
+          <button type="button" onClick={() => router.back()} aria-label="뒤로가기">
+            <ChevronLeftIcon className="size-5 text-zinc-950" />
+          </button>
+        }
+      />
 
-      {query.isLoading ? <p className="body-regular text-zinc-500">불러오는 중...</p> : null}
-      {query.fetchStatus === "paused" ? (
-        <p className="body-small text-error">네트워크 연결을 확인해 주세요.</p>
-      ) : null}
-      {query.isError ? (
-        <p className="body-small text-error">{getApiErrorMessage(query.error)}</p>
-      ) : null}
+      <div className="px-5">
+        {query.isLoading ? <p className="body-regular text-zinc-500">불러오는 중...</p> : null}
+        {query.fetchStatus === "paused" ? (
+          <p className="body-small text-error">네트워크 연결을 확인해 주세요.</p>
+        ) : null}
+        {query.isError ? (
+          <p className="body-small text-error">{getApiErrorMessage(query.error)}</p>
+        ) : null}
 
-      {query.data && items.length === 0 ? (
-        <p className="body-regular text-zinc-500">작성한 리뷰가 없습니다.</p>
-      ) : null}
+        {query.data && items.length === 0 ? (
+          <p className="body-regular text-zinc-500">작성한 리뷰가 없습니다.</p>
+        ) : null}
 
-      <div className="flex flex-col">
-        {items.map((review) => (
-          <MyReviewListItem
-            key={review.reviewId}
-            review={review}
-            isEditing={editingReviewId === review.reviewId}
-            onStartEdit={() => setEditingReviewId(review.reviewId)}
-            onCancelEdit={() => setEditingReviewId(null)}
-            onSaved={() => setEditingReviewId(null)}
-          />
-        ))}
+        <div className="flex flex-col">
+          {items.map((review) => (
+            <MyReviewListItem
+              key={review.reviewId}
+              review={review}
+              isEditing={editingReviewId === review.reviewId}
+              onStartEdit={() => setEditingReviewId(review.reviewId)}
+              onCancelEdit={() => setEditingReviewId(null)}
+              onSaved={() => setEditingReviewId(null)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
