@@ -108,7 +108,9 @@ export function FestivalListPanel() {
     enabled: tab !== "WISHLIST" || isLoggedIn,
   });
   const rankedItems = ranking.data ?? [];
-  const cards = feed.data?.pages.flatMap((page) => page.items) ?? [];
+  const cards = (feed.data?.pages.flatMap((page) => page.items) ?? []).filter(
+    (item) => item.progressStatus !== "COMPLETED",
+  );
 
   return (
     <div className="-mt-4 min-w-0">
