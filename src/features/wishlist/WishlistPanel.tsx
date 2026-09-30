@@ -71,8 +71,8 @@ function WishlistFestivalCard({
 
   return (
     <div className="relative min-w-0 flex-1 border-b border-zinc-200 py-5">
-      <Link href={`/festivals/${item.id}`} className="block min-w-0 pr-6">
-        <div className="flex min-w-0 items-center gap-1">
+      <Link href={`/festivals/${item.id}`} className="block min-w-0">
+        <div className="flex min-w-0 items-center gap-1 pr-6">
           {item.progressStatus ? (
             <span className={`body-small-bold shrink-0 ${STATUS_TEXT_CLASS[item.progressStatus]}`}>
               {FILTER_LABEL[item.progressStatus]}
@@ -105,11 +105,11 @@ function WishlistFestivalCard({
             <DotsVerticalIcon aria-hidden className="size-4" />
           </button>
           {menuOpen ? (
-            <div className="absolute right-2.5 top-11 z-20 translate-x-1/2 rounded-xl border border-zinc-100 bg-white p-1.5 shadow-lg">
+            <div className="absolute right-0 top-12 z-20 w-[108px] max-w-[calc(100vw-40px)] rounded-xl border border-zinc-100 bg-white p-1.5 shadow-lg">
               <button
                 type="button"
                 onClick={onDelete}
-                className="body-small whitespace-nowrap rounded-lg px-2 py-1.5 text-zinc-800 hover:bg-zinc-50"
+                className="body-small w-full whitespace-nowrap rounded-lg px-2 py-1.5 text-center text-zinc-800 hover:bg-zinc-50"
               >
                 삭제하기
               </button>
