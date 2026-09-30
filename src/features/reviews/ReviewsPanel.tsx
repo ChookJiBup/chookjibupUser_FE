@@ -34,7 +34,10 @@ export function ReviewsPanel({ festivalId }: { festivalId: string }) {
           로그인 화면으로 튕긴다. 그래서 로그인했을 때만 바로가기를 보여 준다.
         */}
         {isLoggedIn ? (
-          <Link href={`/festivals/${festivalId}/review`} className="body-small-bold text-point-600">
+          <Link
+            href={`/festivals/${festivalId}/review`}
+            className="body-small-bold text-point-600 underline underline-offset-2"
+          >
             리뷰 남기기
           </Link>
         ) : null}
