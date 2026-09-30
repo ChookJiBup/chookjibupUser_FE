@@ -92,6 +92,7 @@ export function WishlistPanel() {
   const [sort, setSort] = useState<SortOption>("LATEST");
   const [editMode, setEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const query = useQuery({
     queryKey: ["my-wishlist"],
@@ -103,6 +104,7 @@ export function WishlistPanel() {
     onSuccess: () => {
       setSelectedIds(new Set());
       setEditMode(false);
+      setDeleteDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["my-wishlist"] });
       queryClient.invalidateQueries({ queryKey: ["festivals"] });
       queryClient.invalidateQueries({ queryKey: ["festivals-map"] });
@@ -145,8 +147,7 @@ export function WishlistPanel() {
 
   function handleDeleteClick() {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`저장한 축제 ${selectedIds.size}개를 삭제하시겠습니까?`)) return;
-    deleteMutation.mutate(Array.from(selectedIds));
+    setDeleteDialogOpen(true);
   }
 
   const allVisibleSelected = items.length > 0 && items.every((item) => selectedIds.has(item.id));
@@ -220,8 +221,8 @@ export function WishlistPanel() {
                 onClick={() => setFilter(value)}
                 className={
                   filter === value
-                    ? `body-small-bold relative flex h-full shrink-0 items-center border-b-2 border-zinc-950 pr-3 text-zinc-950 ${value === "ALL" ? "pl-5" : "pl-3"}`
-                    : `body-small flex h-full shrink-0 items-center border-b-2 border-transparent pr-3 text-zinc-400 ${value === "ALL" ? "pl-5" : "pl-3"}`
+                    ? `body-small-bold relative flex h-full shrink-0 items-end border-b-2 border-zinc-950 pb-[9px] pr-3 text-zinc-950 ${value === "ALL" ? "pl-5" : "pl-3"}`
+                    : `body-small flex h-full shrink-0 items-end border-b-2 border-transparent pb-[9px] pr-3 text-zinc-400 ${value === "ALL" ? "pl-5" : "pl-3"}`
                 }
               >
                 {FILTER_LABEL[value]}
@@ -287,6 +288,49 @@ export function WishlistPanel() {
           ),
         )}
       </div>
+
+      {deleteDialogOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-5">
+          <button
+            type="button"
+            aria-label="삭제 확인 닫기"
+            className="absolute inset-0"
+            onClick={() => setDeleteDialogOpen(false)}
+          />
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="wishlist-delete-title"
+            aria-describedby="wishlist-delete-description"
+            className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+          >
+            <h2 id="wishlist-delete-title" className="body-large-bold text-zinc-950">
+              저장한 축제를 삭제할까요?
+            </h2>
+            <p id="wishlist-delete-description" className="body-small mt-2 text-zinc-500">
+              선택한 축제 {selectedIds.size}개가 저장 목록에서 삭제됩니다.
+            </p>
+            <div className="mt-6 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteDialogOpen(false)}
+                disabled={deleteMutation.isPending}
+                className="body-regular-bold h-11 flex-1 rounded-lg border border-zinc-300 text-zinc-700 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteMutation.mutate(Array.from(selectedIds))}
+                disabled={deleteMutation.isPending}
+                className="body-regular-bold h-11 flex-1 rounded-lg bg-error text-white disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
