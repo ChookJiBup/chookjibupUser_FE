@@ -2,7 +2,7 @@
 
 import { HeartIcon } from "@/components/icons/HeartIcon";
 
-import { type InfiniteData, useQueryClient } from "@tanstack/react-query";
+import { type InfiniteData, type QueryClient, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getApiErrorMessage } from "@/lib/api/httpError";
@@ -125,6 +125,45 @@ export function FestivalStats({
   );
 }
 
+function applyWishlistResult(
+  item: UserFestivalResponse,
+  festivalId: string,
+  wishlisted: boolean,
+): UserFestivalResponse {
+  if (item.id !== festivalId) return item;
+  return {
+    ...item,
+    wishlisted,
+    wishlistCount: Math.max(
+      0,
+      item.wishlistCount + (item.wishlisted === wishlisted ? 0 : wishlisted ? 1 : -1),
+    ),
+  };
+}
+
+async function syncFestivalListCaches(
+  queryClient: QueryClient,
+  festivalId: string,
+  wishlisted: boolean,
+) {
+  const updateFestival = (item: UserFestivalResponse) =>
+    applyWishlistResult(item, festivalId, wishlisted);
+  const updatePage = (page: UserFestivalPageResponse): UserFestivalPageResponse => ({
+    ...page,
+    items: page.items.map(updateFestival),
+  });
+
+  await queryClient.cancelQueries({ queryKey: ["festivals"] }).catch(() => undefined);
+  queryClient.setQueriesData<
+    UserFestivalResponse[] | UserFestivalPageResponse | InfiniteData<UserFestivalPageResponse>
+  >({ queryKey: ["festivals"] }, (data) => {
+    if (!data) return data;
+    if (Array.isArray(data)) return data.map(updateFestival);
+    if ("pages" in data) return { ...data, pages: data.pages.map(updatePage) };
+    return updatePage(data);
+  });
+}
+
 export function WishlistHeart({
   festival,
   showWhenLoggedOut = false,
@@ -151,49 +190,28 @@ export function WishlistHeart({
     }
     setPending(true);
     setErrorMessage("");
+    let result: Awaited<ReturnType<typeof toggleWishlist>>;
     try {
-      const result = await toggleWishlist(festival.id);
-      const updatePage = (page: UserFestivalPageResponse): UserFestivalPageResponse => ({
-        ...page,
-        items: page.items.map((item) =>
-          item.id === festival.id
-            ? {
-                ...item,
-                wishlisted: result.wishlisted,
-                wishlistCount: Math.max(
-                  0,
-                  item.wishlistCount +
-                    (item.wishlisted === result.wishlisted ? 0 : result.wishlisted ? 1 : -1),
-                ),
-              }
-            : item,
-        ),
-      });
-      await queryClient.cancelQueries({ queryKey: ["festivals"] });
-      queryClient.setQueriesData<UserFestivalPageResponse | InfiniteData<UserFestivalPageResponse>>(
-        { queryKey: ["festivals"] },
-        (data) =>
-          !data
-            ? data
-            : "pages" in data
-              ? { ...data, pages: data.pages.map(updatePage) }
-              : updatePage(data),
-      );
-      await Promise.all(
-        [
-          ["festivals"],
-          ["festival-search"],
-          ["wishlist-tab"],
-          ["my-wishlist"],
-          ["festivals-map"],
-          ["festival", festival.id],
-        ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
-      );
+      result = await toggleWishlist(festival.id);
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, "찜을 저장하지 못했습니다. 다시 시도해 주세요."));
-    } finally {
       setPending(false);
+      return;
     }
+
+    await syncFestivalListCaches(queryClient, festival.id, result.wishlisted);
+    setPending(false);
+
+    // 찜 저장이 성공한 뒤 다른 화면의 캐시 갱신이 실패해도 저장 실패로 안내하지 않는다.
+    void Promise.allSettled(
+      [
+        ["festivals"],
+        ["festival-search"],
+        ["my-wishlist"],
+        ["festivals-map"],
+        ["festival", festival.id],
+      ].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+    );
   }
 
   if (!isLoggedIn && !showWhenLoggedOut) return null;

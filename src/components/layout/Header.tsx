@@ -11,7 +11,7 @@ import {
   PersonIcon,
 } from "@radix-ui/react-icons";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
@@ -20,6 +20,7 @@ import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore"
 
 export function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const hasHydrated = useUserAuthHasHydrated();
   const session = useUserAuthStore((state) => state.session);
@@ -40,6 +41,13 @@ export function Header() {
   function closeMenu() {
     setMenuOpen(false);
   }
+
+  function moveToLogin() {
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    router.push(`/login?next=${encodeURIComponent(returnTo)}`);
+  }
+
+  if (pathname === "/wishlist") return null;
 
   return (
     <>
@@ -111,7 +119,7 @@ export function Header() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => router.push("/login")}
+                onClick={moveToLogin}
                 className="h-8 w-[69px] px-0"
               >
                 로그인
@@ -133,7 +141,11 @@ export function Header() {
             {!isLoggedIn ? (
               <Link
                 href="/login"
-                onClick={closeMenu}
+                onClick={(event) => {
+                  event.preventDefault();
+                  closeMenu();
+                  moveToLogin();
+                }}
                 className="body-regular-bold flex h-[52px] shrink-0 items-center px-7 py-3.5 text-point-600"
               >
                 로그인

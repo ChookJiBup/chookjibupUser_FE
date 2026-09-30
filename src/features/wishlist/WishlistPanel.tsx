@@ -4,22 +4,30 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { ChevronLeftIcon, Cross1Icon } from "@radix-ui/react-icons";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  Cross1Icon,
+  DotsVerticalIcon,
+  Pencil1Icon,
+} from "@radix-ui/react-icons";
 import { getApiErrorMessage } from "@/lib/api/httpError";
-import { FestivalCard, STATUS_LABEL } from "@/features/festivals/FestivalCard";
-import type { FestivalProgressStatus, UserFestivalResponse } from "@/features/festivals/types";
+import { FestivalImage } from "@/features/festivals/FestivalImage";
+import type { FestivalProgressStatus } from "@/features/festivals/types";
 import { deleteWishlists, getMyWishlist } from "./api";
 import type { MyWishlistFestivalResponse } from "./types";
 
-type FilterTab = "ALL" | Exclude<FestivalProgressStatus, "COMPLETED">;
+type FilterTab = "ALL" | FestivalProgressStatus;
 
 const FILTER_LABEL: Record<FilterTab, string> = {
   ALL: "전체",
   ONGOING: "진행중",
   UPCOMING: "진행예정",
+  COMPLETED: "진행완료",
 };
 
-const FILTERS: FilterTab[] = ["ALL", "ONGOING", "UPCOMING"];
+const FILTERS: FilterTab[] = ["ALL", "ONGOING", "UPCOMING", "COMPLETED"];
 
 type SortOption = "LATEST" | "NAME";
 
@@ -28,27 +36,46 @@ const SORT_LABEL: Record<SortOption, string> = {
   NAME: "이름순",
 };
 
-function toFestivalResponse(item: MyWishlistFestivalResponse): UserFestivalResponse {
-  return {
-    id: item.id,
-    name: item.name,
-    imageUrl: item.imageUrl,
-    eventPlace: item.eventPlace,
-    address: item.address,
-    detailAddress: null,
-    startDate: item.startDate,
-    endDate: item.endDate,
-    operationStartTime: null,
-    operationEndTime: null,
-    phoneNumber: null,
-    homepageUrl: null,
-    latitude: null,
-    longitude: null,
-    progressStatus: item.progressStatus,
-    wishlisted: true,
-    wishlistCount: item.wishlistCount,
-    reviewCount: item.reviewCount,
-  };
+const STATUS_TEXT_CLASS: Record<FestivalProgressStatus, string> = {
+  ONGOING: "text-point-600",
+  UPCOMING: "text-secondary-600",
+  COMPLETED: "text-zinc-500",
+};
+
+function WishlistFestivalCard({
+  item,
+  editing,
+}: {
+  item: MyWishlistFestivalResponse;
+  editing: boolean;
+}) {
+  return (
+    <Link href={`/festivals/${item.id}`} className="block min-w-0 flex-1 py-5">
+      <div className="flex min-w-0 items-center gap-1">
+        {item.progressStatus ? (
+          <span className={`body-small-bold shrink-0 ${STATUS_TEXT_CLASS[item.progressStatus]}`}>
+            {FILTER_LABEL[item.progressStatus]}
+          </span>
+        ) : null}
+        <p className="body-small-bold min-w-0 flex-1 truncate text-zinc-950">{item.name}</p>
+        {!editing ? (
+          <DotsVerticalIcon aria-hidden className="size-5 shrink-0 text-zinc-950" />
+        ) : null}
+      </div>
+      <p className="body-caption mt-2 truncate text-zinc-600">
+        {item.address ?? item.eventPlace ?? ""}
+      </p>
+      <div className="mt-3 grid grid-cols-3 gap-1">
+        {[0, 1, 2].map((index) => (
+          <FestivalImage
+            key={index}
+            imageUrl={item.imageUrl}
+            className="aspect-[1.55/1] min-w-0 rounded-lg"
+          />
+        ))}
+      </div>
+    </Link>
+  );
 }
 
 /**
@@ -122,17 +149,19 @@ export function WishlistPanel() {
     deleteMutation.mutate(Array.from(selectedIds));
   }
 
+  const allVisibleSelected = items.length > 0 && items.every((item) => selectedIds.has(item.id));
+
   return (
-    <div className="flex flex-col pb-24">
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 py-3">
+    <div className="-mx-5 -my-4 flex flex-col pb-24">
+      <div className="sticky top-0 z-40 flex min-h-[calc(48px+var(--app-safe-top))] items-end justify-between gap-2 border-b border-zinc-100 bg-white px-5 pb-3 pt-[calc(12px+var(--app-safe-top))]">
         <div className="flex items-center gap-2">
           {editMode ? (
             <button type="button" onClick={toggleEditMode} aria-label="편집 취소">
-              <Cross1Icon className="size-5 text-zinc-700" />
+              <Cross1Icon className="size-5 text-zinc-950" />
             </button>
           ) : (
             <Link href="/" aria-label="뒤로가기">
-              <ChevronLeftIcon className="size-5 text-zinc-700" />
+              <ChevronLeftIcon className="size-5 text-zinc-950" />
             </Link>
           )}
           <h1 className="body-large-bold text-zinc-950">내가 저장한 축제</h1>
@@ -145,11 +174,16 @@ export function WishlistPanel() {
             disabled={selectedIds.size === 0 || deleteMutation.isPending}
             className="body-small-bold text-error disabled:text-zinc-300"
           >
-            삭제하기
+            삭제
           </button>
         ) : (
-          <button type="button" onClick={toggleEditMode} className="body-small-bold text-zinc-700">
-            수정하기
+          <button
+            type="button"
+            onClick={toggleEditMode}
+            aria-label="저장한 축제 편집"
+            className="inline-flex size-6 items-center justify-center text-zinc-950"
+          >
+            <Pencil1Icon className="size-4" />
           </button>
         )}
       </div>
@@ -160,44 +194,59 @@ export function WishlistPanel() {
         </p>
       ) : null}
 
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 py-3">
-        <select
-          value={sort}
-          onChange={(event) => setSort(event.target.value as SortOption)}
-          className="body-small rounded-full bg-zinc-100 px-3 py-1.5 text-zinc-700"
-        >
-          {(Object.keys(SORT_LABEL) as SortOption[]).map((value) => (
-            <option key={value} value={value}>
-              {SORT_LABEL[value]}
-            </option>
-          ))}
-        </select>
-
-        <div className="flex gap-2 overflow-x-auto">
-          {FILTERS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setFilter(value)}
-              className={
-                filter === value
-                  ? "body-small-bold shrink-0 rounded-full bg-point-600 px-3 py-1.5 text-white"
-                  : "body-small shrink-0 rounded-full bg-zinc-100 px-3 py-1.5 text-zinc-700"
-              }
+      {!editMode ? (
+        <div className="flex h-14 items-stretch border-b border-zinc-100 px-5">
+          <label className="relative flex shrink-0 items-center gap-1 pr-5 body-small text-zinc-700">
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value as SortOption)}
+              aria-label="정렬 기준"
+              className="appearance-none bg-transparent pr-5 outline-none"
             >
-              {value === "ALL" ? FILTER_LABEL[value] : STATUS_LABEL[value]}
-            </button>
-          ))}
+              {(Object.keys(SORT_LABEL) as SortOption[]).map((value) => (
+                <option key={value} value={value}>
+                  {SORT_LABEL[value]}
+                </option>
+              ))}
+            </select>
+            <ChevronDownIcon aria-hidden className="pointer-events-none absolute right-5 size-4" />
+          </label>
+          <span aria-hidden className="my-4 w-px bg-zinc-200" />
+          <div className="flex min-w-0 flex-1 overflow-x-auto">
+            {FILTERS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setFilter(value)}
+                className={
+                  filter === value
+                    ? "body-small-bold relative flex h-full shrink-0 items-center border-b-2 border-zinc-950 px-3 text-zinc-950"
+                    : "body-small flex h-full shrink-0 items-center border-b-2 border-transparent px-3 text-zinc-400"
+                }
+              >
+                {FILTER_LABEL[value]}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {editMode ? (
         <button
           type="button"
           onClick={toggleSelectAll}
-          className="body-small border-b border-zinc-100 py-2 text-left text-zinc-500"
+          className="flex h-14 items-center gap-2 border-b border-zinc-100 px-5 text-left body-small text-zinc-950"
         >
-          {selectedIds.size === items.length && items.length > 0 ? "전체 선택 해제" : "전체 선택"}
+          <span
+            className={`inline-flex size-5 items-center justify-center rounded border ${
+              allVisibleSelected
+                ? "border-point-600 bg-point-600 text-white"
+                : "border-zinc-300 text-transparent"
+            }`}
+          >
+            <CheckIcon className="size-4" />
+          </span>
+          전체 선택
         </button>
       ) : null}
 
@@ -216,22 +265,25 @@ export function WishlistPanel() {
         <p className="body-regular text-zinc-500">해당하는 축제가 없습니다.</p>
       ) : null}
 
-      <div className="flex flex-col">
+      <div className="flex flex-col px-5">
         {items.map((item) =>
           editMode ? (
-            <label key={item.id} className="flex items-center gap-3 border-b border-zinc-100 py-2">
+            <label key={item.id} className="flex items-start gap-2 border-b border-zinc-100">
               <input
                 type="checkbox"
                 checked={selectedIds.has(item.id)}
                 onChange={() => toggleSelect(item.id)}
-                className="size-5 shrink-0 accent-point-600"
+                className="peer sr-only"
               />
+              <span className="mt-5 inline-flex size-5 shrink-0 items-center justify-center rounded border border-zinc-300 text-transparent peer-checked:border-point-600 peer-checked:bg-point-600 peer-checked:text-white">
+                <CheckIcon className="size-4" />
+              </span>
               <div className="pointer-events-none flex-1">
-                <FestivalCard festival={toFestivalResponse(item)} />
+                <WishlistFestivalCard item={item} editing />
               </div>
             </label>
           ) : (
-            <FestivalCard key={item.id} festival={toFestivalResponse(item)} />
+            <WishlistFestivalCard key={item.id} item={item} editing={false} />
           ),
         )}
       </div>
