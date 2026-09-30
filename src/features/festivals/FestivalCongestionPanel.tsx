@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -21,7 +22,7 @@ import { API_ERROR_CODE, getApiErrorCode, getApiErrorMessage } from "@/lib/api/h
 import { formatTimeAgo } from "@/lib/relativeTime";
 import { getFestivalCongestion, getFestivalDetail } from "./api";
 import { StatusBadge } from "./FestivalCard";
-import { CongestionMapView } from "./CongestionMapView";
+import { RoadmapMapView, type BoothCongestionHint } from "./RoadmapMapView";
 import {
   CONGESTION_LABEL,
   CONGESTION_LEVELS,
@@ -48,10 +49,10 @@ const BUSIEST_HINT = "예상 대기시간이 가장 긴 부스예요.";
 /** 하단 시트 위쪽에 지는 그림자. 색은 토큰에서 섞어 쓴다(팔레트 밖 색을 새로 만들지 않는다). */
 const SHEET_SHADOW = "0 -4px 6px color-mix(in srgb, var(--color-zinc-950) 9%, transparent)";
 
-const CHIP_BASE =
-  "body-small flex h-9 shrink-0 items-center gap-1 rounded-full border px-4 transition-colors";
-const CHIP_OFF = "border-zinc-200 bg-white text-zinc-800";
-const CHIP_ON = "border-point-600 bg-point-600 text-white";
+const CHIP_BASE = "flex h-9 shrink-0 items-center gap-1 rounded-full border px-4 transition-colors";
+const CHIP_OFF = "body-small border-zinc-200 bg-white text-zinc-800";
+const CHIP_ON = "body-small border-point-600 bg-point-600 text-white";
+const ZONE_CHIP_ON = "body-small-bold border-zinc-950 bg-white text-zinc-950";
 
 /**
  * 「축제 실시간 현황」(목록 뷰 · 지도 뷰).
@@ -59,8 +60,14 @@ const CHIP_ON = "border-point-600 bg-point-600 text-white";
  * <p>축제 상세의 실시간 요약에서 「전체 보기」로 들어오는 화면이다. 상세는 상위 3개만
  * 보여주는 자리라 전체 부스와 필터는 여기서만 다룬다.</p>
  */
-export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) {
-  const [view, setView] = useState<ViewMode>("LIST");
+export function FestivalCongestionPanel({
+  festivalId,
+  initialView = "LIST",
+}: {
+  festivalId: string;
+  initialView?: ViewMode;
+}) {
+  const [view, setView] = useState<ViewMode>(initialView);
   const [selectedZoneIds, setSelectedZoneIds] = useState<string[]>([]);
   const [selectedLevels, setSelectedLevels] = useState<BoothCongestionLevel[]>([]);
   const [zoneSheetOpen, setZoneSheetOpen] = useState(false);
@@ -86,7 +93,27 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
   // React Compiler가 메모이제이션을 포기한다).
   const roadmap = festival?.roadmap ?? null;
 
-  const zoneOptions = useMemo(() => collectZoneOptions(congestion?.booths ?? []), [congestion]);
+  const zoneOptions = useMemo(() => {
+    const byId = new Map<string, ZoneOption>();
+    roadmap?.zones.forEach((zone) => {
+      byId.set(zone.zoneId, { zoneId: zone.zoneId, name: zone.name });
+    });
+    collectZoneOptions(congestion?.booths ?? []).forEach((zone) => {
+      byId.set(zone.zoneId, zone);
+    });
+    return [...byId.values()];
+  }, [congestion, roadmap]);
+
+  // 구버전 혼잡도 API에는 zoneId가 없으므로 배치도 노드 UUID로 소속 구역을 보완한다.
+  const zoneByRoadmapNodeId = useMemo(() => {
+    const byNodeId = new Map<string, ZoneOption>();
+    roadmap?.zones.forEach((zone) => {
+      zone.booths.forEach((booth) =>
+        byNodeId.set(booth.publicId, { zoneId: zone.zoneId, name: zone.name }),
+      );
+    });
+    return byNodeId;
+  }, [roadmap]);
 
   /*
     서버가 주는 booths 순서는 부스 등록 순(boothId)이라 방문객에게는 아무 의미가 없다.
@@ -108,20 +135,33 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
         if (!booth.congestionLevel || !selectedLevels.includes(booth.congestionLevel)) return false;
       }
       if (selectedZoneIds.length > 0) {
-        if (!booth.zoneId || !selectedZoneIds.includes(booth.zoneId)) return false;
+        const zoneId =
+          booth.zoneId ??
+          (booth.roadmapNodePublicId
+            ? zoneByRoadmapNodeId.get(booth.roadmapNodePublicId)?.zoneId
+            : undefined);
+        if (!zoneId || !selectedZoneIds.includes(zoneId)) return false;
       }
       return true;
     });
-  }, [sortedBooths, selectedLevels, selectedZoneIds]);
+  }, [sortedBooths, selectedLevels, selectedZoneIds, zoneByRoadmapNodeId]);
 
   /*
     지도 핀과 혼잡도는 배치도 노드 id로 잇는다. 예전에는 부스 «이름»으로 맞췄는데,
     이름이 같은 부스 둘은 한쪽 등급이 다른 쪽에 묻어 나왔다.
   */
-  const levelByNodeId = useMemo(() => {
-    const map = new Map<string, BoothCongestionLevel | null>();
+  const congestionByNodeId = useMemo(() => {
+    const map = new Map<string, BoothCongestionHint>();
     (congestion?.booths ?? []).forEach((booth) => {
-      if (booth.roadmapNodePublicId) map.set(booth.roadmapNodePublicId, booth.congestionLevel);
+      if (!booth.roadmapNodePublicId) return;
+      map.set(booth.roadmapNodePublicId, {
+        level: booth.congestionLevel,
+        waitMinutes: booth.waitMinutes,
+        queueTailLatitude: booth.queueTailLatitude,
+        queueTailLongitude: booth.queueTailLongitude,
+        queueTailMeters: booth.queueTailMeters,
+        queuePath: booth.queuePath,
+      });
     });
     return map;
   }, [congestion]);
@@ -164,7 +204,7 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
   }
   if (!festival) return null;
 
-  const appliedFilterCount = selectedZoneIds.length + selectedLevels.length;
+  const selectedZoneCount = selectedZoneIds.length;
 
   return (
     <div className="-mx-5 -my-4 flex min-h-[calc(100dvh-var(--app-header-height))] flex-col bg-white">
@@ -223,51 +263,58 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
           <div className="flex flex-col gap-3 px-5 py-4">
             <p className="body-regular-bold text-zinc-950">부스 목록</p>
 
-            <div className="-mx-5 flex items-center gap-3 overflow-x-auto px-5">
-              {/* 적용된 필터 개수만 알려 주는 표시다 — 누르는 자리가 아니다. */}
-              <span
-                aria-label={`적용된 필터 ${appliedFilterCount}개`}
-                className={`body-small flex h-9 shrink-0 items-center justify-center rounded-full border border-zinc-100 text-zinc-800 ${
-                  appliedFilterCount > 0 ? "gap-1 px-4" : "w-9"
-                }`}
-              >
-                <MixerHorizontalIcon className="size-4" />
-                {appliedFilterCount > 0 ? appliedFilterCount : null}
-              </span>
-
-              {zoneOptions.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setZoneSheetOpen(true)}
-                  className={`${CHIP_BASE} ${CHIP_OFF}`}
+            <div className="-mx-5 flex items-center gap-2 overflow-x-auto px-5">
+              <div className="flex shrink-0 items-center gap-[12px]">
+                <span
+                  aria-label={`선택한 구역 ${selectedZoneCount}개`}
+                  className={`body-small flex h-9 shrink-0 items-center justify-center rounded-full border bg-white ${
+                    selectedZoneCount > 0
+                      ? "gap-1 border-zinc-950 px-4 font-semibold text-zinc-950"
+                      : "w-9 border-zinc-100 text-zinc-800"
+                  }`}
                 >
-                  <span className="max-w-[140px] truncate">
-                    {formatZoneChipLabel(zoneOptions, selectedZoneIds)}
-                  </span>
-                  <ChevronDownIcon className="size-4 shrink-0" />
-                </button>
-              ) : null}
+                  <MixerHorizontalIcon className="size-4" />
+                  {selectedZoneCount > 0 ? selectedZoneCount : null}
+                </span>
 
-              {CONGESTION_LEVELS.map((level) => {
-                const on = selectedLevels.includes(level);
-                return (
+                {zoneOptions.length > 0 ? (
                   <button
-                    key={level}
                     type="button"
-                    aria-pressed={on}
-                    onClick={() =>
-                      setSelectedLevels((current) =>
-                        current.includes(level)
-                          ? current.filter((item) => item !== level)
-                          : [...current, level],
-                      )
-                    }
-                    className={`${CHIP_BASE} ${on ? CHIP_ON : CHIP_OFF}`}
+                    aria-expanded={zoneSheetOpen}
+                    aria-controls="zone-option-sheet"
+                    onClick={() => setZoneSheetOpen(true)}
+                    className={`${CHIP_BASE} ${selectedZoneCount > 0 ? ZONE_CHIP_ON : CHIP_OFF}`}
                   >
-                    {CONGESTION_LABEL[level]}
+                    <span className="max-w-[140px] truncate">
+                      {formatZoneChipLabel(zoneOptions, selectedZoneIds)}
+                    </span>
+                    <ChevronDownIcon className="size-4 shrink-0" />
                   </button>
-                );
-              })}
+                ) : null}
+              </div>
+
+              <div className="flex shrink-0 items-center gap-2">
+                {CONGESTION_LEVELS.map((level) => {
+                  const on = selectedLevels.includes(level);
+                  return (
+                    <button
+                      key={level}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() =>
+                        setSelectedLevels((current) =>
+                          current.includes(level)
+                            ? current.filter((item) => item !== level)
+                            : [...current, level],
+                        )
+                      }
+                      className={`${CHIP_BASE} ${on ? CHIP_ON : CHIP_OFF}`}
+                    >
+                      {CONGESTION_LABEL[level]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {sortedBooths.length === 0 ? (
@@ -281,7 +328,16 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
             ) : (
               <div className="flex flex-col">
                 {visibleBooths.map((booth) => (
-                  <BoothRow key={booth.boothId} booth={booth} />
+                  <BoothRow
+                    key={booth.boothId}
+                    booth={booth}
+                    zoneName={
+                      booth.zoneName ??
+                      (booth.roadmapNodePublicId
+                        ? zoneByRoadmapNodeId.get(booth.roadmapNodePublicId)?.name
+                        : undefined)
+                    }
+                  />
                 ))}
               </div>
             )}
@@ -290,9 +346,10 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
       ) : (
         <div className="relative min-h-[420px] flex-1">
           {roadmap && hasMappedBooths ? (
-            <CongestionMapView
+            <RoadmapMapView
               roadmap={roadmap}
-              levelByNodeId={levelByNodeId}
+              fullScreen
+              congestionByNodeId={congestionByNodeId}
               selectedNodeId={selectedNodeId}
               onSelectNode={setSelectedNodeId}
             />
@@ -384,7 +441,13 @@ function BusiestBoothText({ booth }: { booth: BoothCongestionResponse | null }) 
   return <p className="body-regular min-w-0 truncate text-zinc-950">{booth.boothName}</p>;
 }
 
-function BoothRow({ booth }: { booth: BoothCongestionResponse }) {
+function BoothRow({
+  booth,
+  zoneName,
+}: {
+  booth: BoothCongestionResponse;
+  zoneName?: string | null;
+}) {
   const timeAgo = formatTimeAgo(booth.updatedAt);
   const waitText =
     booth.waitMinutes === null ? "예상 대기 정보 없음" : `예상 대기 ${booth.waitMinutes}분`;
@@ -394,9 +457,7 @@ function BoothRow({ booth }: { booth: BoothCongestionResponse }) {
       <div className="flex min-w-0 flex-col">
         <div className="flex min-w-0 items-center gap-2">
           <p className="body-regular truncate text-zinc-950">{booth.boothName}</p>
-          {booth.zoneName ? (
-            <p className="body-caption shrink-0 text-zinc-600">{booth.zoneName}</p>
-          ) : null}
+          {zoneName ? <p className="body-caption shrink-0 text-zinc-600">{zoneName}</p> : null}
         </div>
         <p className="body-caption text-zinc-500">
           {timeAgo ? `${waitText} · ${timeAgo} 업데이트` : waitText}
@@ -519,7 +580,7 @@ function ZoneOptionSheet({
     );
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 mx-auto w-full max-w-[var(--app-max-width)]">
       <button
         type="button"
@@ -528,6 +589,7 @@ function ZoneOptionSheet({
         className="absolute inset-0 bg-dimmed"
       />
       <div
+        id="zone-option-sheet"
         className="absolute inset-x-0 bottom-0 flex flex-col rounded-t-2xl bg-white"
         style={{ boxShadow: SHEET_SHADOW }}
       >
@@ -551,7 +613,7 @@ function ZoneOptionSheet({
                 type="button"
                 aria-pressed={on}
                 onClick={() => toggle(zone.zoneId)}
-                className={`${CHIP_BASE} ${on ? CHIP_ON : CHIP_OFF}`}
+                className={`${CHIP_BASE} ${on ? ZONE_CHIP_ON : CHIP_OFF}`}
               >
                 {zone.name}
               </button>
@@ -560,7 +622,7 @@ function ZoneOptionSheet({
         </div>
 
         {draft.length > 0 ? (
-          <div className="flex flex-wrap gap-2 px-5 pb-2">
+          <div className="flex flex-wrap gap-3 border-t border-zinc-200 px-5 pt-4 pb-2">
             {options
               .filter((zone) => draft.includes(zone.zoneId))
               .map((zone) => (
@@ -569,7 +631,7 @@ function ZoneOptionSheet({
                   type="button"
                   aria-label={`${zone.name} 선택 해제`}
                   onClick={() => toggle(zone.zoneId)}
-                  className={`${CHIP_BASE} ${CHIP_ON}`}
+                  className={`${CHIP_BASE} ${ZONE_CHIP_ON}`}
                 >
                   {zone.name}
                   <Cross2Icon className="size-4 shrink-0" />
@@ -587,6 +649,7 @@ function ZoneOptionSheet({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

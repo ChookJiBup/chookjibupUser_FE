@@ -1,4 +1,5 @@
 import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 
 /**
  * 전역 헤더(햄버거 + 로고 + 검색 + 로그인/사용자)를 쓰는 화면들의 레이아웃.
@@ -12,6 +13,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
       <main className="relative isolate z-0 flex min-w-0 flex-1 flex-col px-5 py-4">
         {children}
       </main>
+      <Footer />
     </div>
   );
 }

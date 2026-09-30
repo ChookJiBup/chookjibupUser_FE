@@ -25,7 +25,7 @@ export function FestivalStatusFilterBar({
       <div className="relative mr-2 flex h-4 shrink-0 items-center border-r border-zinc-200 pr-4">
         {leading}
       </div>
-      <div className="flex h-full min-w-0 flex-1 justify-between overflow-x-auto">
+      <div className="flex h-full min-w-0 flex-1 gap-5 overflow-x-auto">
         {options.map((option) => (
           <button
             key={option.value}

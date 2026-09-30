@@ -94,7 +94,7 @@ export function FestivalListPanel() {
       }
       return getFestivals({
         region: regionFilter,
-        status: undefined,
+        status: tab === "ONGOING" || tab === "UPCOMING" || tab === "COMPLETED" ? tab : undefined,
         sort: "VIEW_COUNT",
         page: pageParam,
         size: FEED_PAGE_SIZE,
@@ -109,7 +109,7 @@ export function FestivalListPanel() {
   });
   const rankedItems = ranking.data ?? [];
   const cards = (feed.data?.pages.flatMap((page) => page.items) ?? []).filter(
-    (item) => item.progressStatus !== "COMPLETED",
+    (festival) => tab !== "ALL" || festival.progressStatus !== "COMPLETED",
   );
 
   return (
@@ -230,7 +230,7 @@ export function FestivalListPanel() {
         </p>
       ) : (
         <section
-          className="pt-4"
+          className={tab === "WISHLIST" ? "pt-8" : "pt-4"}
           aria-label={tab === "WISHLIST" ? "내가 저장한 축제" : "요즘 주목받고 있는 축제"}
         >
           {tab !== "WISHLIST" && (

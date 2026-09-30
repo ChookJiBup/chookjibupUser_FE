@@ -86,6 +86,11 @@ export async function getFestivalCongestion(
 ): Promise<FestivalCongestionResponse> {
   const { data } = await userApiClient.get<ApiResponse<FestivalCongestionResponse>>(
     `/festivals/${festivalId}/congestion`,
+    {
+      // 실시간 현황은 사용자가 직접 새로고침할 수 있으므로 브라우저/CDN 캐시를 우회한다.
+      params: { _: Date.now() },
+      headers: { "Cache-Control": "no-cache" },
+    },
   );
   return data.data;
 }

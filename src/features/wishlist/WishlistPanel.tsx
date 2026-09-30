@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -12,6 +13,7 @@ import {
   DotsVerticalIcon,
 } from "@radix-ui/react-icons";
 import { EditIcon } from "@/components/icons/EditIcon";
+import { SubpageHeader } from "@/components/layout/SubpageHeader";
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { FestivalImage } from "@/features/festivals/FestivalImage";
 import { FestivalStatusFilterBar } from "@/features/festivals/FestivalStatusFilterBar";
@@ -130,6 +132,7 @@ function WishlistFestivalCard({
  * 표현이 안 된다.
  */
 export function WishlistPanel() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterTab>("ALL");
   const [sort, setSort] = useState<SortOption>("LATEST");
@@ -198,40 +201,41 @@ export function WishlistPanel() {
 
   return (
     <div className="-mx-5 -my-4 flex flex-col pb-24">
-      <div className="sticky top-0 z-40 flex min-h-[calc(48px+var(--app-safe-top))] items-end justify-between gap-2 bg-white px-5 pb-3 pt-[calc(12px+var(--app-safe-top))]">
-        <div className="flex items-center gap-2">
-          {editMode ? (
+      <SubpageHeader
+        title="내가 저장한 축제"
+        leading={
+          editMode ? (
             <button type="button" onClick={toggleEditMode} aria-label="편집 취소">
               <Cross1Icon className="size-5 text-zinc-950" />
             </button>
           ) : (
-            <Link href="/" aria-label="뒤로가기">
+            <button type="button" onClick={() => router.back()} aria-label="뒤로가기">
               <ChevronLeftIcon className="size-5 text-zinc-950" />
-            </Link>
-          )}
-          <h1 className="body-large-bold text-zinc-950">내가 저장한 축제</h1>
-        </div>
-
-        {editMode ? (
-          <button
-            type="button"
-            onClick={handleDeleteClick}
-            disabled={selectedIds.size === 0 || deleteMutation.isPending}
-            className="body-small-bold text-error disabled:text-zinc-300"
-          >
-            삭제
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={toggleEditMode}
-            aria-label="저장한 축제 편집"
-            className="inline-flex size-6 items-center justify-center text-zinc-950"
-          >
-            <EditIcon className="size-4" />
-          </button>
-        )}
-      </div>
+            </button>
+          )
+        }
+        trailing={
+          editMode ? (
+            <button
+              type="button"
+              onClick={handleDeleteClick}
+              disabled={selectedIds.size === 0 || deleteMutation.isPending}
+              className="body-small-bold text-error disabled:text-zinc-300"
+            >
+              삭제
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={toggleEditMode}
+              aria-label="저장한 축제 편집"
+              className="inline-flex size-6 items-center justify-center text-zinc-950"
+            >
+              <EditIcon className="size-4" />
+            </button>
+          )
+        }
+      />
 
       {deleteMutation.isError ? (
         <p className="body-caption py-2 text-error">
