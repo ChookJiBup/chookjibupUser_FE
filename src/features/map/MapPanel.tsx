@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import {
   ChevronDownIcon,
   Cross2Icon,
@@ -508,7 +508,6 @@ function FestivalMarkerCard({
   festival: UserFestivalResponse;
   onClose: () => void;
 }) {
-  const queryClient = useQueryClient();
   const isOngoing = festival.progressStatus === "ONGOING";
 
   /*
@@ -554,14 +553,13 @@ function FestivalMarkerCard({
                 type="button"
                 aria-label="혼잡도 새로고침"
                 disabled={congestionQuery.isFetching}
-                onClick={() => {
-                  void queryClient.invalidateQueries({
-                    queryKey: ["festival-congestion", festival.id],
-                  });
-                }}
+                onClick={() => void congestionQuery.refetch()}
                 className="text-zinc-400 disabled:text-zinc-300"
               >
-                <UpdateIcon aria-hidden className="size-4" />
+                <UpdateIcon
+                  aria-hidden
+                  className={`size-4 ${congestionQuery.isFetching ? "animate-spin" : ""}`}
+                />
               </button>
             </span>
           </div>
