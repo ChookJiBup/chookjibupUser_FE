@@ -35,7 +35,7 @@ const ICON_SIZE: Record<ButtonSize, string> = {
 
 const VARIANT_STYLES: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-primary-foreground hover:bg-primary-500 disabled:bg-zinc-200 disabled:text-zinc-400",
+    "bg-point-600 text-primary-foreground hover:bg-point-500 disabled:bg-zinc-200 disabled:text-zinc-400",
   outline:
     "border border-zinc-300 bg-white text-zinc-950 hover:bg-zinc-100 disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400",
   destructive: "bg-error text-white hover:bg-red-600 disabled:bg-zinc-200 disabled:text-zinc-400",
@@ -62,7 +62,7 @@ export function Button({
         BASE_STYLES,
         isGhostSelected ? SIZE_STYLES_SELECTED[size] : SIZE_STYLES[size],
         VARIANT_STYLES[variant],
-        isGhostSelected && "text-primary hover:bg-transparent",
+        isGhostSelected && "text-point-600 hover:bg-transparent",
         className,
       )}
       {...props}

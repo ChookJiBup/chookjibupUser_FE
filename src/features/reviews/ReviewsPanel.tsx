@@ -36,7 +36,7 @@ export function ReviewsPanel({ festivalId }: { festivalId: string }) {
         {isLoggedIn ? (
           <Link
             href={`/festivals/${festivalId}/review`}
-            className="body-small-bold text-point-600 underline underline-offset-2"
+            className="body-small-bold text-point-600 underline-offset-2"
           >
             리뷰 남기기
           </Link>
@@ -50,8 +50,8 @@ export function ReviewsPanel({ festivalId }: { festivalId: string }) {
         </div>
       ) : (
           <div className="flex flex-col gap-1 rounded-lg border border-zinc-100 p-3 text-zinc-950">
-        <p className="body-small-bold">리뷰는 현장 QR코드를 통해 작성할 수 있어요.</p>
-        <p className="body-caption">축제 현장에서 QR코드를 스캔해 주세요!</p>
+        <p className="body-small-bold">축제 현장에서 QR코드를 스캔하고 리뷰를 남겨보세요.</p>
+        <p className="body-caption">현장 QR코드를 통해 작성한 리뷰는 방문 인증을 받을 수 있어요!</p>
       </div>
       )}
 

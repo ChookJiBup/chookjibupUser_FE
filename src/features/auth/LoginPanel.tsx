@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/Input";
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { useUserAuthStore } from "@/store/userAuthStore";
 import { emailLogin, getCurrentUser } from "./api";
+import { EMAIL_FORMAT_ERROR, isValidEmail } from "./emailValidation";
 import { getKakaoAuthorizeUrl } from "./kakao";
 import { safeLoginReturn, saveLoginReturn } from "./loginReturn";
 
@@ -30,9 +31,12 @@ function LoginPanelInner() {
   const [emailMode, setEmailMode] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const emailFormatError =
+    email.trim() !== "" && !isValidEmail(email) ? EMAIL_FORMAT_ERROR : undefined;
+  const canSubmit = isValidEmail(email) && password.length > 0;
   const loginMutation = useMutation({
     mutationFn: async () => {
-      await emailLogin({ email, password });
+      await emailLogin({ email: email.trim(), password });
       return getCurrentUser();
     },
     onSuccess: (result) => {
@@ -51,6 +55,7 @@ function LoginPanelInner() {
             className="flex flex-col gap-3"
             onSubmit={(event) => {
               event.preventDefault();
+              if (!canSubmit) return;
               loginMutation.mutate();
             }}
           >
@@ -62,6 +67,7 @@ function LoginPanelInner() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="이메일"
+              errorText={emailFormatError}
             />
             <Input
               label="비밀번호"
@@ -75,7 +81,7 @@ function LoginPanelInner() {
             <Button
               type="submit"
               size="lg"
-              disabled={loginMutation.isPending}
+              disabled={loginMutation.isPending || !canSubmit}
               className="mt-2 w-full rounded-lg bg-point-600 hover:bg-point-500"
             >
               {loginMutation.isPending ? "로그인 중..." : "로그인하기"}

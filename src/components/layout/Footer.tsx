@@ -1,11 +1,24 @@
+"use client";
+
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 
 export interface FooterProps {
   className?: string;
 }
 
+/** 홈(`/`)과 축제 상세(`/festivals/:id`)에서만 Footer를 노출한다. */
+function shouldShowFooter(pathname: string) {
+  if (pathname === "/") return true;
+  return /^\/festivals\/[^/]+$/.test(pathname);
+}
+
 export function Footer({ className }: FooterProps) {
+  const pathname = usePathname();
+
+  if (!shouldShowFooter(pathname)) return null;
+
   return (
     <footer
       className={cn(
@@ -19,7 +32,7 @@ export function Footer({ className }: FooterProps) {
           chookjibup@email.com
         </a>
         <br />
-        한국관광공사 TourAPI 4.0 OpenAPI 데이터 활용
+        한국관광공사 OpenAPI 데이터 활용
       </p>
       <nav aria-label="정책" className="flex flex-wrap items-center gap-x-6 gap-y-2">
         <Link href="/policy/terms" className="body-caption text-zinc-600 hover:text-zinc-950">

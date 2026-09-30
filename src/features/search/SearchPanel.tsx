@@ -122,7 +122,7 @@ export function SearchPanel() {
               type="button"
               aria-label="검색어 지우기"
               onClick={handleClear}
-              className="flex size-5 shrink-0 items-center justify-center rounded-full bg-zinc-400 text-white"
+              className="flex size-5 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-white"
             >
               <Cross2Icon aria-hidden className="size-3" />
             </button>

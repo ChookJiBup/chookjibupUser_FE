@@ -10,6 +10,7 @@ import { formatServerDate } from "@/lib/serverTime";
 import { getApiErrorMessage, isAuthExpiredError } from "@/lib/api/httpError";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
 import { StarRating } from "@/components/ui/StarRating";
+import { useSuccessToast } from "@/components/ui/SuccessToast";
 import { getFestivalDetail } from "@/features/festivals/api";
 import { StatusBadge, formatDateRange, formatShortRegion } from "@/features/festivals/FestivalCard";
 import { createReview, getReviews } from "./api";
@@ -49,6 +50,7 @@ function ReviewWritePanelInner({ festivalId }: { festivalId: string }) {
 
   const [rating, setRating] = useState(0);
   const [content, setContent] = useState("");
+  const { toast, showToast } = useSuccessToast();
 
   useEffect(() => {
     // 현장(QR) 리뷰는 비로그인이어도 계속 작성할 수 있어야 해서 리다이렉트하지 않는다 —
@@ -75,6 +77,7 @@ function ReviewWritePanelInner({ festivalId }: { festivalId: string }) {
     onSuccess: () => {
       setRating(0);
       setContent("");
+      showToast("리뷰가 등록됐어요.");
       queryClient.invalidateQueries({ queryKey: ["festival-reviews", festivalId] });
     },
   });
@@ -156,11 +159,6 @@ function ReviewWritePanelInner({ festivalId }: { festivalId: string }) {
           </div>
         </div>
 
-        {createMutation.isSuccess ? (
-          <p className="body-caption text-center text-secondary-600">
-            리뷰가 등록됐어요. 감사합니다!
-          </p>
-        ) : null}
         {createMutation.isError ? (
           <p className="body-caption text-center text-error">
             {isAuthExpiredError(createMutation.error)
@@ -173,6 +171,8 @@ function ReviewWritePanelInner({ festivalId }: { festivalId: string }) {
       <div className="h-2 bg-zinc-100" />
 
       <ReviewListSection reviewsQuery={reviewsQuery} />
+
+      {toast}
     </div>
   );
 }

@@ -5,12 +5,13 @@ import { HeartIcon } from "@/components/icons/HeartIcon";
 import { type InfiniteData, type QueryClient, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getApiErrorMessage } from "@/lib/api/httpError";
+import { getApiErrorMessage, isAuthExpiredError } from "@/lib/api/httpError";
 import { useState } from "react";
 import { ChatBubbleIcon } from "@radix-ui/react-icons";
 import { FestivalImage } from "./FestivalImage";
 import { toggleWishlist } from "@/features/wishlist/api";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
+import { useSuccessToast } from "@/components/ui/SuccessToast";
 import type {
   FestivalProgressStatus,
   UserFestivalPageResponse,
@@ -20,7 +21,7 @@ import type {
 export const STATUS_LABEL: Record<FestivalProgressStatus, string> = {
   UPCOMING: "진행 예정",
   ONGOING: "진행중",
-  COMPLETED: "진행 완료",
+  COMPLETED: "진행완료",
 };
 
 export const STATUS_BADGE_CLASS: Record<FestivalProgressStatus, string> = {
@@ -176,9 +177,9 @@ export function WishlistHeart({
   const hasHydrated = useUserAuthHasHydrated();
   const session = useUserAuthStore((state) => state.session);
   const isLoggedIn = hasHydrated && session !== null;
+  const { toast, showToast } = useSuccessToast();
 
   const [pending, setPending] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
 
   async function handleClick(event: React.MouseEvent) {
     event.preventDefault();
@@ -189,18 +190,23 @@ export function WishlistHeart({
       return;
     }
     setPending(true);
-    setErrorMessage("");
     let result: Awaited<ReturnType<typeof toggleWishlist>>;
     try {
       result = await toggleWishlist(festival.id);
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, "찜을 저장하지 못했습니다. 다시 시도해 주세요."));
+      showToast(
+        isAuthExpiredError(error)
+          ? "로그인이 만료됐어요. 다시 로그인해 주세요."
+          : getApiErrorMessage(error, "저장하지 못했어요. 다시 시도해 주세요."),
+        "error",
+      );
       setPending(false);
       return;
     }
 
     await syncFestivalListCaches(queryClient, festival.id, result.wishlisted);
     setPending(false);
+    showToast(result.wishlisted ? "축제를 저장했어요." : "저장을 취소했어요.");
 
     // 찜 저장이 성공한 뒤 다른 화면의 캐시 갱신이 실패해도 저장 실패로 안내하지 않는다.
     void Promise.allSettled(
@@ -228,14 +234,7 @@ export function WishlistHeart({
       >
         <HeartIcon filled={festival.wishlisted} aria-hidden className="size-4" />
       </button>
-      {errorMessage && (
-        <span
-          role="alert"
-          className="body-caption absolute right-0 top-full z-30 w-44 rounded-lg border border-red-300 bg-white p-2 text-red-600 shadow-sm"
-        >
-          {errorMessage}
-        </span>
-      )}
+      {toast}
     </span>
   );
 }

@@ -13,6 +13,7 @@ import {
   getCurrentUser,
   requestEmailVerification,
 } from "@/features/auth/api";
+import { EMAIL_FORMAT_ERROR, isValidEmail } from "@/features/auth/emailValidation";
 import { getApiErrorMessage } from "@/lib/api/httpError";
 import { useUserAuthStore } from "@/store/userAuthStore";
 
@@ -72,6 +73,9 @@ export function SignupPanel() {
 
   const allAgreed = agreements.every(Boolean);
   const passwordValid = password.length >= 8 && password === passwordConfirm;
+  const emailFormatError =
+    email.trim() !== "" && !isValidEmail(email) ? EMAIL_FORMAT_ERROR : undefined;
+  const emailValid = isValidEmail(email);
   const canContinue = emailVerified && passwordValid && allAgreed;
   const canSubmit = nickname.trim() !== "" && phoneNumber.trim() !== "" && birthDate !== "";
   const verificationError = requestMutation.error ?? confirmMutation.error;
@@ -96,31 +100,33 @@ export function SignupPanel() {
       {step === 1 ? (
         <div className="mt-6 flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <div className="flex items-end gap-2">
-              <Input
-                label="이메일"
-                type="email"
-                autoComplete="email"
-                required
-                disabled={emailVerified}
-                className={
-                  emailVerified
-                    ? "user-verified border-point-600 bg-point-300 text-zinc-950 disabled:border-point-600 disabled:bg-point-300 disabled:text-zinc-950"
-                    : undefined
-                }
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="이메일"
-              />
-              <Button
-                size="default"
-                disabled={!email || emailVerified || requestMutation.isPending}
-                onClick={() => requestMutation.mutate()}
-                className="h-[42px] shrink-0 rounded-lg bg-point-600 px-3 hover:bg-point-500"
-              >
-                {emailSent ? "인증번호 다시보내기" : "인증번호 보내기"}
-              </Button>
-            </div>
+            <Input
+              layout="with-button"
+              label="이메일"
+              type="email"
+              autoComplete="email"
+              required
+              disabled={emailVerified}
+              className={
+                emailVerified
+                  ? "user-verified border-point-600 bg-point-300 text-zinc-950 disabled:border-point-600 disabled:bg-point-300 disabled:text-zinc-950"
+                  : undefined
+              }
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="이메일"
+              errorText={emailFormatError}
+              button={
+                <Button
+                  size="default"
+                  disabled={!emailValid || emailVerified || requestMutation.isPending}
+                  onClick={() => requestMutation.mutate()}
+                  className="h-[42px] shrink-0 rounded-lg bg-point-600 px-3 hover:bg-point-500"
+                >
+                  {emailSent ? "인증번호 다시보내기" : "인증번호 보내기"}
+                </Button>
+              }
+            />
             {verificationError ? (
               <p className="body-small text-error">
                 {getApiErrorMessage(verificationError, "인증번호 요청을 처리하지 못했습니다.")}

@@ -32,6 +32,7 @@ import {
   resolveOverallLevel,
 } from "./congestionPresentation";
 import { formatServerUpdatedAt } from "@/lib/serverTime";
+import { useSuccessToast } from "@/components/ui/SuccessToast";
 import { FestivalInfoTab } from "./FestivalInfoTab";
 import { collectRoadmapPins, readAreaPoints, readBoundary, readOverlay } from "./mapPresentation";
 import { RoadmapMapView, type BoothCongestionHint } from "./RoadmapMapView";
@@ -68,6 +69,7 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
   const hasHydrated = useUserAuthHasHydrated();
   const session = useUserAuthStore((state) => state.session);
   const isLoggedIn = hasHydrated && session !== null;
+  const { toast, showToast } = useSuccessToast();
 
   /*
     시안 2(스크롤 후)에서는 제목 줄이 탭 위로 접혀 고정된다. 제목 블록이 화면 위로
@@ -86,11 +88,20 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
 
   const wishlistMutation = useMutation({
     mutationFn: () => toggleWishlist(festivalId),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      showToast(result.wishlisted ? "축제를 저장했어요." : "저장을 취소했어요.");
       queryClient.invalidateQueries({ queryKey: ["festival", festivalId] });
       queryClient.invalidateQueries({ queryKey: ["festivals"] });
       queryClient.invalidateQueries({ queryKey: ["festival-search"] });
       queryClient.invalidateQueries({ queryKey: ["my-wishlist"] });
+    },
+    onError: (error) => {
+      showToast(
+        isAuthExpiredError(error)
+          ? "로그인이 만료됐어요. 다시 로그인해 주세요."
+          : getApiErrorMessage(error, "저장하지 못했어요. 다시 시도해 주세요."),
+        "error",
+      );
     },
   });
 
@@ -192,14 +203,6 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
 
         {actions}
 
-        {wishlistMutation.isError ? (
-          <p className="body-caption text-error">
-            {isAuthExpiredError(wishlistMutation.error)
-              ? "로그인이 만료됐어요. 다시 로그인해 주세요."
-              : getApiErrorMessage(wishlistMutation.error)}
-          </p>
-        ) : null}
-
         {isOngoing ? <CongestionSummary festivalId={festivalId} query={congestionQuery} /> : null}
       </section>
 
@@ -243,6 +246,7 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
         />
       ) : null}
       {tab === "REVIEW" ? <ReviewsPanel festivalId={festivalId} /> : null}
+      {toast}
     </div>
   );
 }

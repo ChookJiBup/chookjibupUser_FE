@@ -18,6 +18,7 @@ import { getApiErrorMessage } from "@/lib/api/httpError";
 import { FestivalImage } from "@/features/festivals/FestivalImage";
 import { FestivalStatusFilterBar } from "@/features/festivals/FestivalStatusFilterBar";
 import type { FestivalProgressStatus } from "@/features/festivals/types";
+import { useSuccessToast } from "@/components/ui/SuccessToast";
 import { deleteWishlists, getMyWishlist } from "./api";
 import type { MyWishlistFestivalResponse } from "./types";
 
@@ -111,7 +112,7 @@ function WishlistFestivalCard({
               <button
                 type="button"
                 onClick={onDelete}
-                className="body-small w-full whitespace-nowrap rounded-lg px-2 py-1.5 text-center text-zinc-800 hover:bg-zinc-50"
+                className="bxdy-small w-full whitespace-nowrap rounded-lg px-2 py-1.5 text-center text-zinc-800 hover:bg-zinc-50"
               >
                 삭제하기
               </button>
@@ -134,6 +135,7 @@ function WishlistFestivalCard({
 export function WishlistPanel() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { toast, showToast } = useSuccessToast();
   const [filter, setFilter] = useState<FilterTab>("ALL");
   const [sort, setSort] = useState<SortOption>("LATEST");
   const [editMode, setEditMode] = useState(false);
@@ -148,13 +150,22 @@ export function WishlistPanel() {
 
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => deleteWishlists(ids),
-    onSuccess: () => {
+    onSuccess: (_data, ids) => {
       setSelectedIds(new Set());
       setEditMode(false);
       setDeleteDialogOpen(false);
+      showToast(
+        ids.length === 1
+          ? "저장을 취소했어요."
+          : `저장한 축제 ${ids.length}개를 삭제했어요.`,
+      );
       queryClient.invalidateQueries({ queryKey: ["my-wishlist"] });
       queryClient.invalidateQueries({ queryKey: ["festivals"] });
       queryClient.invalidateQueries({ queryKey: ["festivals-map"] });
+    },
+    onError: (error) => {
+      setDeleteDialogOpen(false);
+      showToast(getApiErrorMessage(error, "저장을 삭제하지 못했어요. 다시 시도해 주세요."), "error");
     },
   });
 
@@ -390,6 +401,8 @@ export function WishlistPanel() {
           </div>
         </div>
       ) : null}
+
+      {toast}
     </div>
   );
 }
