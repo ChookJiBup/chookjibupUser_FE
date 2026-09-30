@@ -1,4 +1,3 @@
-// src/app/auth/kakao/callback/page.tsx (전체)
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
@@ -17,6 +16,7 @@ function KakaoCallbackInner() {
   const searchParams = useSearchParams();
   const setSession = useUserAuthStore((state) => state.setSession);
   const code = searchParams.get("code");
+  const oauthState = searchParams.get("state");
 
   const loginMutation = useMutation({
     mutationFn: async (authCode: string) => {
@@ -25,16 +25,12 @@ function KakaoCallbackInner() {
     },
     onSuccess: (result) => {
       setSession(result);
-      router.replace(takeLoginReturn());
+      router.replace(takeLoginReturn(oauthState));
     },
   });
 
   const { mutate } = loginMutation;
-  // 카카오 인가 코드는 1회용이라, 이 코드로 이미 로그인 요청을 보냈으면 다시 보내면 안 된다.
-  // ref만으로는 React가 컴포넌트를 다시 렌더링할 때만 막아준다 — 브라우저가 이 페이지를
-  // "새로고침"해서 완전히 다시 로드하면(같은 ?code=... 가 URL에 남아있는 채로) ref는
-  // 초기화돼서 무력화된다. sessionStorage는 탭을 새로고침해도 값이 남아있어서, 진짜
-  // 페이지 새로고침까지 포함해서 막을 수 있다.
+  // 1회용 인가 코드가 새로고침으로 재사용되는 것을 막는다.
   useEffect(() => {
     if (!code) return;
     if (typeof window === "undefined") return;

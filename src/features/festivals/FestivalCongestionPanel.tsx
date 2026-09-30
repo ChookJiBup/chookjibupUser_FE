@@ -10,12 +10,12 @@ import {
   Cross2Icon,
   ListBulletIcon,
   MixerHorizontalIcon,
-  QuestionMarkCircledIcon,
   UpdateIcon,
 } from "@radix-ui/react-icons";
 
 import { MapIcon } from "@/components/icons/MapIcon";
 import { Button } from "@/components/ui/Button";
+import { HelpTooltip } from "@/components/ui/HelpTooltip";
 import { IconButton } from "@/components/ui/IconButton";
 import { API_ERROR_CODE, getApiErrorCode, getApiErrorMessage } from "@/lib/api/httpError";
 import { formatTimeAgo } from "@/lib/relativeTime";
@@ -204,7 +204,7 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
           <div className="px-5 pb-5">
             <div className="flex items-center justify-between gap-3 rounded-lg border border-zinc-300 px-5 py-4">
               <div className="flex min-w-0 flex-col gap-1">
-                <HelpLabel label="전체 혼잡도" hint={OVERALL_HINT} />
+                <HelpTooltip label="전체 혼잡도" hint={OVERALL_HINT} />
                 <p
                   className={`body-large-bold ${overallLevel ? CONGESTION_TEXT_CLASS[overallLevel] : "text-zinc-400"}`}
                 >
@@ -212,7 +212,7 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
                 </p>
               </div>
               <div className="flex min-w-0 flex-col items-start gap-1">
-                <HelpLabel label="가장 혼잡한 부스" hint={BUSIEST_HINT} />
+                <HelpTooltip label="가장 혼잡한 부스" hint={BUSIEST_HINT} />
                 <BusiestBoothText booth={busiestBooth} />
               </div>
             </div>
@@ -308,7 +308,7 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
             <BoothDetailSheet
               booth={selectedBooth}
               isRefreshing={congestionQuery.isFetching}
-              onRefresh={() => congestionQuery.refetch()}
+              onRefresh={() => void congestionQuery.refetch()}
               onClose={() => setSelectedNodeId(null)}
             />
           ) : (
@@ -321,11 +321,11 @@ export function FestivalCongestionPanel({ festivalId }: { festivalId: string }) 
                   >
                     {overallLevel ? CONGESTION_LABEL[overallLevel] : "정보 없음"}
                   </p>
-                  <HelpLabel label="혼잡도" hint={OVERALL_HINT} />
+                  <HelpTooltip label="혼잡도" hint={OVERALL_HINT} />
                 </div>
                 <div className="flex min-w-0 flex-col items-start gap-1">
                   <BusiestBoothText booth={busiestBooth} />
-                  <HelpLabel label="가장 혼잡한 부스" hint={BUSIEST_HINT} />
+                  <HelpTooltip label="가장 혼잡한 부스" hint={BUSIEST_HINT} />
                 </div>
               </div>
             </div>
@@ -382,30 +382,6 @@ function CongestionStateNotice({
 function BusiestBoothText({ booth }: { booth: BoothCongestionResponse | null }) {
   if (!booth) return <p className="body-regular text-zinc-400">정보 없음</p>;
   return <p className="body-regular min-w-0 truncate text-zinc-950">{booth.boothName}</p>;
-}
-
-/** 라벨 옆 ⓘ. 눌러야 설명이 나오게 둔 건 카드 두 칸에 설명을 늘 펼쳐 둘 자리가 없어서다. */
-function HelpLabel({ label, hint }: { label: string; hint: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="relative flex items-center gap-1">
-      <p className="body-small whitespace-nowrap text-zinc-500">{label}</p>
-      <button
-        type="button"
-        aria-label={`${label} 설명`}
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-        className="shrink-0 text-zinc-400"
-      >
-        <QuestionMarkCircledIcon className="size-3" />
-      </button>
-      {open ? (
-        <p className="body-caption absolute bottom-full left-0 z-30 mb-1 w-max max-w-[220px] rounded-md bg-zinc-800 px-2 py-1 text-white">
-          {hint}
-        </p>
-      ) : null}
-    </div>
-  );
 }
 
 function BoothRow({ booth }: { booth: BoothCongestionResponse }) {
@@ -488,7 +464,7 @@ function BoothDetailSheet({
             disabled={isRefreshing}
             className="text-zinc-500 disabled:text-zinc-300"
           >
-            <UpdateIcon className="size-3" />
+            <UpdateIcon aria-hidden className={`size-3 ${isRefreshing ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>

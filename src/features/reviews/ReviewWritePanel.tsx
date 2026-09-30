@@ -11,7 +11,7 @@ import { getApiErrorMessage, isAuthExpiredError } from "@/lib/api/httpError";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
 import { StarRating } from "@/components/ui/StarRating";
 import { getFestivalDetail } from "@/features/festivals/api";
-import { StatusBadge, formatDateRange } from "@/features/festivals/FestivalCard";
+import { StatusBadge, formatDateRange, formatShortRegion } from "@/features/festivals/FestivalCard";
 import { createReview, getReviews } from "./api";
 import { toDisplayReviewerName } from "./reviewerName";
 import type { ReviewResponse } from "./types";
@@ -98,7 +98,9 @@ function ReviewWritePanelInner({ festivalId }: { festivalId: string }) {
           </div>
           <div className="body-small flex items-center gap-2 text-zinc-600">
             {/* 장소명이 길어도 기간이 다음 줄로 밀리지 않게 장소 쪽만 줄여 자른다. */}
-            <span className="min-w-0 truncate">{festival.eventPlace ?? festival.address}</span>
+            <span className="min-w-0 truncate">
+              {formatShortRegion(festival.address, festival.eventPlace)}
+            </span>
             {/* 장소와 기간을 잇는 세로 구분선. 글자가 아니라 선이라 스크린리더에서는 감춘다. */}
             <span aria-hidden className="h-3 w-px shrink-0 rounded-full bg-zinc-300" />
             <span className="shrink-0 whitespace-nowrap">

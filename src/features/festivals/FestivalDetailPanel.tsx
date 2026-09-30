@@ -6,11 +6,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DesktopIcon, ExternalLinkIcon, Link2Icon, ReloadIcon } from "@radix-ui/react-icons";
-import { CalendarDaysIcon } from "@/components/icons/CalendarDaysIcon";
-import { MapIcon } from "@/components/icons/MapIcon";
+import { DesktopIcon, ExternalLinkIcon, ReloadIcon } from "@radix-ui/react-icons";
 import { MapPinIcon } from "@/components/icons/MapPinIcon";
-import { PhoneIcon } from "@/components/icons/PhoneIcon";
 import {
   API_ERROR_CODE,
   getApiErrorCode,
@@ -20,7 +17,6 @@ import {
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
 import { toggleWishlist } from "@/features/wishlist/api";
 import { ReviewsPanel } from "@/features/reviews/ReviewsPanel";
-import { LocationMiniMap } from "@/components/ui/LocationMiniMap";
 import { getFestivalCongestion, getFestivalDetail } from "./api";
 import { formatKoreanDate, formatShortRegion, StatusBadge } from "./FestivalCard";
 import {
@@ -30,7 +26,8 @@ import {
   CONGESTION_TEXT_CLASS,
   resolveOverallLevel,
 } from "./congestionPresentation";
-import { formatClockTime, formatServerUpdatedAt } from "@/lib/serverTime";
+import { formatServerUpdatedAt } from "@/lib/serverTime";
+import { FestivalInfoTab } from "./FestivalInfoTab";
 import { collectRoadmapPins, readAreaPoints, readBoundary, readOverlay } from "./mapPresentation";
 import { RoadmapMapView, type BoothCongestionHint } from "./RoadmapMapView";
 import type {
@@ -38,7 +35,6 @@ import type {
   FestivalCongestionResponse,
   FestivalProgressStatus,
   RoadmapResponse,
-  UserFestivalDetailResponse,
 } from "./types";
 
 type Tab = "INFO" | "MAP" | "REVIEW";
@@ -280,26 +276,6 @@ function FestivalActionButtons({
   );
 }
 
-function copyToClipboard(text: string) {
-  if (typeof navigator !== "undefined" && navigator.clipboard) {
-    navigator.clipboard.writeText(text).catch(() => {});
-  }
-}
-
-/** 주소 옆의 밑줄 "복사". 시안은 아이콘이 아니라 글자 링크다. */
-function CopyTextButton({ value, className = "" }: { value: string; className?: string }) {
-  return (
-    <button
-      type="button"
-      onClick={() => copyToClipboard(value)}
-      aria-label="주소 복사"
-      className={`shrink-0 text-zinc-500 underline ${className}`}
-    >
-      복사
-    </button>
-  );
-}
-
 /**
  * "실시간 축제현황". 탭 바깥(헤더 영역)에 붙고, 진행중일 때만 보인다. 부스지도 탭이
  * 아니라 여기 있는 게 맞다 — 처음엔 부스지도 탭 안에 넣었었는데, Figma 원본을 다시
@@ -327,12 +303,13 @@ function CongestionSummary({
         <p className="body-small-bold text-zinc-600">실시간 축제현황</p>
         <button
           type="button"
-          onClick={() => query.refetch()}
+          onClick={() => void query.refetch()}
+          disabled={query.isFetching}
           aria-label="실시간 축제현황 새로고침"
-          className="body-caption flex items-center gap-1 text-zinc-400"
+          className="body-caption flex items-center gap-1 text-zinc-400 disabled:text-zinc-300"
         >
           {updatedAt ? `${updatedAt} 기준` : ""}
-          <ReloadIcon aria-hidden className="size-3" />
+          <ReloadIcon aria-hidden className={`size-3 ${query.isFetching ? "animate-spin" : ""}`} />
         </button>
       </div>
 
@@ -393,129 +370,6 @@ function BoothRankingList({ ranking }: { ranking: BoothCongestionResponse[] }) {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-/**
- * "축제정보" 탭. 기본 정보 → (위치)지도 → 상세 정보 → 출처 순서다. 여기 "지도"는 부스
- * 배치도가 아니라 축제가 열리는 위치를 보여주는 지도다 — 부스 배치도는 "부스지도" 탭에
- * 따로 있다.
- */
-function FestivalInfoTab({ festival }: { festival: UserFestivalDetailResponse }) {
-  const address = festival.address;
-  const startDate = formatKoreanDate(festival.startDate, { withWeekday: true });
-  const endDate = formatKoreanDate(festival.endDate, { withWeekday: true });
-  const operationHours =
-    festival.operationStartTime && festival.operationEndTime
-      ? `${formatClockTime(festival.operationStartTime)}~${formatClockTime(festival.operationEndTime)}`
-      : null;
-
-  return (
-    <div className="flex flex-col">
-      <section className="flex flex-col gap-3 px-5 py-4">
-        <p className="body-regular-bold text-zinc-950">기본 정보</p>
-
-        {startDate ? (
-          <InfoRow icon={<CalendarDaysIcon className="size-[18px]" />}>
-            {startDate}
-            {endDate ? ` ~ ${endDate}` : ""}
-            {operationHours ? ` (${operationHours})` : ""}
-          </InfoRow>
-        ) : null}
-
-        {address ? (
-          <InfoRow icon={<MapPinIcon className="size-[18px]" />}>
-            {address}
-            <CopyTextButton value={address} className="body-small ml-1" />
-          </InfoRow>
-        ) : null}
-
-        {festival.eventPlace ? (
-          <InfoRow icon={<MapIcon className="size-[18px]" />}>{festival.eventPlace}</InfoRow>
-        ) : null}
-
-        {festival.phoneNumber ? (
-          <InfoRow icon={<PhoneIcon className="size-[18px]" />}>{festival.phoneNumber}</InfoRow>
-        ) : null}
-
-        {festival.homepageUrl ? (
-          <InfoRow icon={<Link2Icon className="size-[18px]" />}>
-            <a
-              href={festival.homepageUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="body-small text-zinc-500 underline"
-            >
-              홈페이지 바로가기
-            </a>
-          </InfoRow>
-        ) : null}
-
-        <div className="flex flex-col gap-2 rounded-lg border border-zinc-100 p-3">
-          <p className="body-small text-zinc-950">
-            본 축제 정보는{" "}
-            <span className="body-small-bold text-point-600">
-              문화체육관광부의 지역축제정보 API
-            </span>
-            를 바탕으로 제공되었습니다.{" "}
-            <span className="body-small-bold">
-              현장 상황에 따라 진행 내용은 변동될 수 있으니, 방문 전 축제 문의처를 통해 반드시 확인
-              바랍니다.
-            </span>
-          </p>
-        </div>
-      </section>
-
-      {festival.latitude !== null && festival.longitude !== null ? (
-        <>
-          <div className="h-2 bg-zinc-100" />
-          <section className="flex flex-col gap-3 px-5 py-4">
-            <p className="body-regular-bold text-zinc-800">지도</p>
-            <LocationMiniMap latitude={festival.latitude} longitude={festival.longitude} />
-            {address ? (
-              <div className="flex items-center gap-2">
-                <span className="flex w-[18px] shrink-0 items-center justify-center text-zinc-400">
-                  <MapPinIcon className="size-4" />
-                </span>
-                <p className="body-small min-w-0 flex-1 text-zinc-950">
-                  {address}
-                  <CopyTextButton value={address} className="body-caption ml-1" />
-                </p>
-              </div>
-            ) : null}
-          </section>
-        </>
-      ) : null}
-
-      {festival.content ? (
-        <>
-          <div className="h-2 bg-zinc-100" />
-          <section className="flex flex-col gap-3 px-5 py-4">
-            <p className="body-regular-bold text-zinc-950">상세 정보</p>
-            <p className="body-small whitespace-pre-line text-zinc-950">{festival.content}</p>
-          </section>
-        </>
-      ) : null}
-
-      {/* 시안의 맨 아래 출처 줄. "업데이트 yyyy-MM-dd"도 같이 있지만 상세 응답에
-          갱신 시각 필드가 없어 지금은 제공처만 적는다. */}
-      <div className="flex items-center justify-end gap-4 border-t border-zinc-200 px-5 py-4">
-        <p className="body-caption text-zinc-400">
-          제공 <span className="underline">문화체육관광부</span>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function InfoRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="flex w-full items-center gap-2">
-      <span className="flex h-6 w-[18px] shrink-0 items-center justify-center text-zinc-400">
-        {icon}
-      </span>
-      <span className="body-regular min-w-0 flex-1 text-zinc-950">{children}</span>
     </div>
   );
 }

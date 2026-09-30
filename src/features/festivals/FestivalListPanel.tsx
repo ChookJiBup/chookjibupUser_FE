@@ -10,6 +10,7 @@ import { getApiErrorMessage } from "@/lib/api/httpError";
 import { getMyWishlist } from "@/features/wishlist/api";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
 import { FestivalImage } from "./FestivalImage";
+import { FestivalStatusFilterBar } from "./FestivalStatusFilterBar";
 import { WishlistHeart } from "./FestivalCard";
 import { getFestivals } from "./api";
 import { REGIONS } from "./regions";
@@ -38,7 +39,6 @@ const ACTIVE_STATUSES: Exclude<FestivalProgressStatus, "COMPLETED">[] = ["ONGOIN
 const FEED_PAGE_SIZE = 6;
 const RANKING_SIZE = 8;
 /** 한 번의 조회에서 이어 읽을 최대 페이지 수. 요청이 무한정 늘어나지 않게 막는 안전장치다. */
-const MAX_PAGES_PER_FETCH = 4;
 
 export function FestivalListPanel() {
   const [resetVersion, setResetVersion] = useState(0);
@@ -113,8 +113,14 @@ export function FestivalListPanel() {
   return (
     <div className="-mt-4 min-w-0">
       <h1 className="sr-only">축제 둘러보기</h1>
-      <div className="sticky top-[var(--app-header-height)] z-10 -mx-5 flex h-[46px] items-center border-b border-zinc-100 bg-white px-5">
-        <div className="relative mr-2 flex h-4 shrink-0 items-center border-r-[1px] border-zinc-200 pr-4">
+      <FestivalStatusFilterBar
+        className="sticky top-[var(--app-header-height)] z-10 -mx-5"
+        value={tab}
+        onChange={(value) => {
+          setTab(value as FilterTab);
+          setVisibleCount(4);
+        }}
+        leading={
           <div className="relative">
             <select
               aria-label="축제 지역"
@@ -138,31 +144,20 @@ export function FestivalListPanel() {
               className="pointer-events-none absolute right-0 top-1/2 size-4 -translate-y-1/2 text-zinc-800"
             />
           </div>
-        </div>
-        <div
-          key={resetVersion}
-          className="flex h-full min-w-0 gap-3 overflow-x-auto"
-          aria-label="축제 상태 필터"
-        >
-          {TABS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={tab === value}
-              onClick={() => {
-                setTab(value);
-                setVisibleCount(4);
-              }}
-              className={`body-small flex h-full shrink-0 items-center gap-1.5 border-b-2 px-3 ${tab === value ? "border-zinc-900 font-semibold text-zinc-900" : "border-transparent text-zinc-400"}`}
-            >
-              {value === "WISHLIST" && (
+        }
+        options={TABS.map(({ value, label }) => ({
+          value,
+          label: (
+            <>
+              {value === "WISHLIST" ? (
                 <HeartIcon filled aria-hidden className="size-4 text-red-500" />
-              )}
+              ) : null}
               {label}
-            </button>
-          ))}
-        </div>
-      </div>
+            </>
+          ),
+        }))}
+        key={resetVersion}
+      />
 
       {tab !== "WISHLIST" && (
         <>
@@ -294,35 +289,6 @@ export function FestivalListPanel() {
       </Link>
     </div>
   );
-}
-
-/** 목록을 읽어오는 곳 하나(진행중 / 진행예정 / 찜 목록)와 그 안에서의 페이지 번호. */
-type FeedCursor = { streamIndex: number; page: number };
-type FeedStream = (page: number) => Promise<{ items: UserFestivalResponse[]; totalPages: number }>;
-
-/**
- * 목록 한 묶음을 읽는다. 앞 스트림을 다 읽으면 다음 스트림으로 넘어가고, 종료된 축제를 걸러낸
- * 뒤 개수가 모자라면 다음 페이지를 이어 읽는다. 다만 한 번의 호출에서 MAX_PAGES_PER_FETCH
- * 페이지까지만 본다 — 조건에 맞는 축제가 뒤쪽에 몰려 있어도 요청이 폭주하지 않게 하기 위해서다.
- * 개수를 못 채우고 끊기면 남은 커서를 그대로 돌려주므로 "더보기"로 이어서 읽을 수 있다.
- */
-async function loadFeedPage(streams: FeedStream[], cursor: FeedCursor, minimumCount: number) {
-  const items: UserFestivalResponse[] = [];
-  let nextCursor: FeedCursor | undefined = cursor;
-  for (let fetched = 0; nextCursor && fetched < MAX_PAGES_PER_FETCH; fetched += 1) {
-    // 타입 표기를 붙여야 한다 — 아래에서 nextCursor를 다시 대입하기 때문에 TS가 순환 추론으로 본다.
-    const { streamIndex, page }: FeedCursor = nextCursor;
-    const result = await streams[streamIndex](page);
-    items.push(...result.items.filter((item) => item.progressStatus !== "COMPLETED"));
-    nextCursor =
-      page + 1 < result.totalPages
-        ? { streamIndex, page: page + 1 }
-        : streamIndex + 1 < streams.length
-          ? { streamIndex: streamIndex + 1, page: 0 }
-          : undefined;
-    if (items.length >= minimumCount) break;
-  }
-  return { items, nextCursor };
 }
 
 function HomeThumbnail({

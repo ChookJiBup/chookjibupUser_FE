@@ -2,24 +2,33 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { ChevronLeftIcon, Cross1Icon } from "@radix-ui/react-icons";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  Cross1Icon,
+  DotsVerticalIcon,
+} from "@radix-ui/react-icons";
+import { EditIcon } from "@/components/icons/EditIcon";
 import { getApiErrorMessage } from "@/lib/api/httpError";
-import { FestivalCard, STATUS_LABEL } from "@/features/festivals/FestivalCard";
-import type { FestivalProgressStatus, UserFestivalResponse } from "@/features/festivals/types";
+import { FestivalImage } from "@/features/festivals/FestivalImage";
+import { FestivalStatusFilterBar } from "@/features/festivals/FestivalStatusFilterBar";
+import type { FestivalProgressStatus } from "@/features/festivals/types";
 import { deleteWishlists, getMyWishlist } from "./api";
 import type { MyWishlistFestivalResponse } from "./types";
 
-type FilterTab = "ALL" | Exclude<FestivalProgressStatus, "COMPLETED">;
+type FilterTab = "ALL" | FestivalProgressStatus;
 
 const FILTER_LABEL: Record<FilterTab, string> = {
   ALL: "전체",
   ONGOING: "진행중",
   UPCOMING: "진행예정",
+  COMPLETED: "진행완료",
 };
 
-const FILTERS: FilterTab[] = ["ALL", "ONGOING", "UPCOMING"];
+const FILTERS: FilterTab[] = ["ALL", "ONGOING", "UPCOMING", "COMPLETED"];
 
 type SortOption = "LATEST" | "NAME";
 
@@ -28,27 +37,88 @@ const SORT_LABEL: Record<SortOption, string> = {
   NAME: "이름순",
 };
 
-function toFestivalResponse(item: MyWishlistFestivalResponse): UserFestivalResponse {
-  return {
-    id: item.id,
-    name: item.name,
-    imageUrl: item.imageUrl,
-    eventPlace: item.eventPlace,
-    address: item.address,
-    detailAddress: null,
-    startDate: item.startDate,
-    endDate: item.endDate,
-    operationStartTime: null,
-    operationEndTime: null,
-    phoneNumber: null,
-    homepageUrl: null,
-    latitude: null,
-    longitude: null,
-    progressStatus: item.progressStatus,
-    wishlisted: true,
-    wishlistCount: item.wishlistCount,
-    reviewCount: item.reviewCount,
-  };
+const STATUS_TEXT_CLASS: Record<FestivalProgressStatus, string> = {
+  ONGOING: "text-point-600",
+  UPCOMING: "text-secondary-600",
+  COMPLETED: "text-zinc-500",
+};
+
+function WishlistFestivalCard({
+  item,
+  editing,
+  menuOpen,
+  onToggleMenu,
+  onDelete,
+}: {
+  item: MyWishlistFestivalResponse;
+  editing: boolean;
+  menuOpen: boolean;
+  onToggleMenu: () => void;
+  onDelete: () => void;
+}) {
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function closeMenu(event: PointerEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) onToggleMenu();
+    }
+
+    document.addEventListener("pointerdown", closeMenu);
+    return () => document.removeEventListener("pointerdown", closeMenu);
+  }, [menuOpen, onToggleMenu]);
+
+  return (
+    <div className="relative min-w-0 flex-1 border-b border-zinc-200 py-5">
+      <Link href={`/festivals/${item.id}`} className="block min-w-0 pr-6">
+        <div className="flex min-w-0 items-center gap-1">
+          {item.progressStatus ? (
+            <span className={`body-small-bold shrink-0 ${STATUS_TEXT_CLASS[item.progressStatus]}`}>
+              {FILTER_LABEL[item.progressStatus]}
+            </span>
+          ) : null}
+          <p className="body-small-bold min-w-0 flex-1 truncate text-zinc-950">{item.name}</p>
+        </div>
+        <p className="body-caption mt-2 truncate text-zinc-600">
+          {item.address ?? item.eventPlace ?? ""}
+        </p>
+        <div className="mt-3 grid grid-cols-3 gap-3">
+          {[0, 1, 2].map((index) => (
+            <FestivalImage
+              key={index}
+              imageUrl={item.imageUrl}
+              className="aspect-[112.67/74.7] min-w-0 rounded-lg"
+            />
+          ))}
+        </div>
+      </Link>
+      {!editing ? (
+        <div ref={menuRef}>
+          <button
+            type="button"
+            aria-label={`${item.name} 메뉴`}
+            aria-expanded={menuOpen}
+            onClick={onToggleMenu}
+            className="absolute right-0 top-5 inline-flex size-5 items-center justify-center text-zinc-950"
+          >
+            <DotsVerticalIcon aria-hidden className="size-4" />
+          </button>
+          {menuOpen ? (
+            <div className="absolute right-2.5 top-11 z-20 translate-x-1/2 rounded-xl border border-zinc-100 bg-white p-1.5 shadow-lg">
+              <button
+                type="button"
+                onClick={onDelete}
+                className="body-small whitespace-nowrap rounded-lg px-2 py-1.5 text-zinc-800 hover:bg-zinc-50"
+              >
+                삭제하기
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 /**
@@ -65,6 +135,8 @@ export function WishlistPanel() {
   const [sort, setSort] = useState<SortOption>("LATEST");
   const [editMode, setEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const query = useQuery({
     queryKey: ["my-wishlist"],
@@ -76,6 +148,7 @@ export function WishlistPanel() {
     onSuccess: () => {
       setSelectedIds(new Set());
       setEditMode(false);
+      setDeleteDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["my-wishlist"] });
       queryClient.invalidateQueries({ queryKey: ["festivals"] });
       queryClient.invalidateQueries({ queryKey: ["festivals-map"] });
@@ -118,21 +191,22 @@ export function WishlistPanel() {
 
   function handleDeleteClick() {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`저장한 축제 ${selectedIds.size}개를 삭제하시겠습니까?`)) return;
-    deleteMutation.mutate(Array.from(selectedIds));
+    setDeleteDialogOpen(true);
   }
 
+  const allVisibleSelected = items.length > 0 && items.every((item) => selectedIds.has(item.id));
+
   return (
-    <div className="flex flex-col pb-24">
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 py-3">
+    <div className="-mx-5 -my-4 flex flex-col pb-24">
+      <div className="sticky top-0 z-40 flex min-h-[calc(48px+var(--app-safe-top))] items-end justify-between gap-2 bg-white px-5 pb-3 pt-[calc(12px+var(--app-safe-top))]">
         <div className="flex items-center gap-2">
           {editMode ? (
             <button type="button" onClick={toggleEditMode} aria-label="편집 취소">
-              <Cross1Icon className="size-5 text-zinc-700" />
+              <Cross1Icon className="size-5 text-zinc-950" />
             </button>
           ) : (
             <Link href="/" aria-label="뒤로가기">
-              <ChevronLeftIcon className="size-5 text-zinc-700" />
+              <ChevronLeftIcon className="size-5 text-zinc-950" />
             </Link>
           )}
           <h1 className="body-large-bold text-zinc-950">내가 저장한 축제</h1>
@@ -145,11 +219,16 @@ export function WishlistPanel() {
             disabled={selectedIds.size === 0 || deleteMutation.isPending}
             className="body-small-bold text-error disabled:text-zinc-300"
           >
-            삭제하기
+            삭제
           </button>
         ) : (
-          <button type="button" onClick={toggleEditMode} className="body-small-bold text-zinc-700">
-            수정하기
+          <button
+            type="button"
+            onClick={toggleEditMode}
+            aria-label="저장한 축제 편집"
+            className="inline-flex size-6 items-center justify-center text-zinc-950"
+          >
+            <EditIcon className="size-4" />
           </button>
         )}
       </div>
@@ -160,44 +239,50 @@ export function WishlistPanel() {
         </p>
       ) : null}
 
-      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 py-3">
-        <select
-          value={sort}
-          onChange={(event) => setSort(event.target.value as SortOption)}
-          className="body-small rounded-full bg-zinc-100 px-3 py-1.5 text-zinc-700"
-        >
-          {(Object.keys(SORT_LABEL) as SortOption[]).map((value) => (
-            <option key={value} value={value}>
-              {SORT_LABEL[value]}
-            </option>
-          ))}
-        </select>
-
-        <div className="flex gap-2 overflow-x-auto">
-          {FILTERS.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setFilter(value)}
-              className={
-                filter === value
-                  ? "body-small-bold shrink-0 rounded-full bg-point-600 px-3 py-1.5 text-white"
-                  : "body-small shrink-0 rounded-full bg-zinc-100 px-3 py-1.5 text-zinc-700"
-              }
-            >
-              {value === "ALL" ? FILTER_LABEL[value] : STATUS_LABEL[value]}
-            </button>
-          ))}
-        </div>
-      </div>
+      {!editMode ? (
+        <FestivalStatusFilterBar
+          value={filter}
+          onChange={(value) => setFilter(value as FilterTab)}
+          leading={
+            <label className="relative flex items-center body-small text-zinc-700">
+              <select
+                value={sort}
+                onChange={(event) => setSort(event.target.value as SortOption)}
+                aria-label="정렬 기준"
+                className="appearance-none bg-transparent pr-5 outline-none"
+              >
+                {(Object.keys(SORT_LABEL) as SortOption[]).map((value) => (
+                  <option key={value} value={value}>
+                    {SORT_LABEL[value]}
+                  </option>
+                ))}
+              </select>
+              <ChevronDownIcon
+                aria-hidden
+                className="pointer-events-none absolute right-0 top-1/2 size-4 -translate-y-1/2"
+              />
+            </label>
+          }
+          options={FILTERS.map((value) => ({ value, label: FILTER_LABEL[value] }))}
+        />
+      ) : null}
 
       {editMode ? (
         <button
           type="button"
           onClick={toggleSelectAll}
-          className="body-small border-b border-zinc-100 py-2 text-left text-zinc-500"
+          className="body-regular flex h-14 items-center gap-2 border-b border-zinc-100 px-5 text-left text-zinc-950"
         >
-          {selectedIds.size === items.length && items.length > 0 ? "전체 선택 해제" : "전체 선택"}
+          <span
+            className={`inline-flex size-4 items-center justify-center rounded border ${
+              allVisibleSelected
+                ? "border-point-600 bg-point-600 text-white"
+                : "border-zinc-300 text-transparent"
+            }`}
+          >
+            <CheckIcon className="size-3" />
+          </span>
+          전체 선택
         </button>
       ) : null}
 
@@ -216,25 +301,90 @@ export function WishlistPanel() {
         <p className="body-regular text-zinc-500">해당하는 축제가 없습니다.</p>
       ) : null}
 
-      <div className="flex flex-col">
+      <div className="flex flex-col px-5">
         {items.map((item) =>
           editMode ? (
-            <label key={item.id} className="flex items-center gap-3 border-b border-zinc-100 py-2">
+            <label key={item.id} className="flex items-start gap-2 border-b border-zinc-100">
               <input
                 type="checkbox"
                 checked={selectedIds.has(item.id)}
                 onChange={() => toggleSelect(item.id)}
-                className="size-5 shrink-0 accent-point-600"
+                className="peer sr-only"
               />
+              <span className="mt-5 inline-flex size-4 shrink-0 items-center justify-center rounded border border-zinc-300 text-transparent peer-checked:border-point-600 peer-checked:bg-point-600 peer-checked:text-white">
+                <CheckIcon className="size-3" />
+              </span>
               <div className="pointer-events-none flex-1">
-                <FestivalCard festival={toFestivalResponse(item)} />
+                <WishlistFestivalCard
+                  item={item}
+                  editing
+                  menuOpen={false}
+                  onToggleMenu={() => undefined}
+                  onDelete={() => undefined}
+                />
               </div>
             </label>
           ) : (
-            <FestivalCard key={item.id} festival={toFestivalResponse(item)} />
+            <WishlistFestivalCard
+              key={item.id}
+              item={item}
+              editing={false}
+              menuOpen={openMenuId === item.id}
+              onToggleMenu={() =>
+                setOpenMenuId((current) => (current === item.id ? null : item.id))
+              }
+              onDelete={() => {
+                setOpenMenuId(null);
+                setSelectedIds(new Set([item.id]));
+                setDeleteDialogOpen(true);
+              }}
+            />
           ),
         )}
       </div>
+
+      {deleteDialogOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 px-5">
+          <button
+            type="button"
+            aria-label="삭제 확인 닫기"
+            className="absolute inset-0"
+            onClick={() => setDeleteDialogOpen(false)}
+          />
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="wishlist-delete-title"
+            aria-describedby="wishlist-delete-description"
+            className="relative z-10 w-full max-w-[320px] rounded-2xl bg-white p-5 text-center shadow-xl"
+          >
+            <h2 id="wishlist-delete-title" className="body-large-bold text-zinc-950">
+              저장한 축제를 삭제할까요?
+            </h2>
+            <p id="wishlist-delete-description" className="body-small mt-2 text-zinc-500">
+              선택한 축제 {selectedIds.size}개가 저장 목록에서 삭제됩니다.
+            </p>
+            <div className="mt-6 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteDialogOpen(false)}
+                disabled={deleteMutation.isPending}
+                className="body-regular-bold h-11 flex-1 rounded-lg border border-zinc-300 text-zinc-700 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteMutation.mutate(Array.from(selectedIds))}
+                disabled={deleteMutation.isPending}
+                className="body-regular-bold h-11 flex-1 rounded-lg bg-error text-white disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? "삭제 중..." : "삭제"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
