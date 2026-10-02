@@ -15,13 +15,14 @@ import {
 } from "@/features/auth/api";
 import { EMAIL_FORMAT_ERROR, isValidEmail } from "@/features/auth/emailValidation";
 import { getApiErrorMessage } from "@/lib/api/httpError";
+import { POLICY_AGREEMENTS } from "@/features/policy/policyContent";
 import { useUserAuthStore } from "@/store/userAuthStore";
 
-const AGREEMENTS = [
-  "축지법 서비스 이용약관",
-  "개인정보 수집 및 이용동의",
-  "개인정보 취급 위탁 동의",
-] as const;
+const AGREEMENT_ITEMS = POLICY_AGREEMENTS.map((item) => ({
+  label: item.label,
+  required: true,
+  viewHref: item.path,
+}));
 
 export function SignupPanel() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export function SignupPanel() {
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [agreements, setAgreements] = useState<boolean[]>(AGREEMENTS.map(() => false));
+  const [agreements, setAgreements] = useState<boolean[]>(AGREEMENT_ITEMS.map(() => false));
   const [nickname, setNickname] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -183,7 +184,7 @@ export function SignupPanel() {
 
           <div className="mt-1">
             <AgreementList
-              items={AGREEMENTS.map((label) => ({ label, required: true }))}
+              items={AGREEMENT_ITEMS}
               checkedItems={agreements}
               onCheckedItemsChange={setAgreements}
             />

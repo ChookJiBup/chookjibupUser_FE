@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { POLICY_PRIVACY_PATH, POLICY_TERMS_PATH } from "@/features/policy/policyContent";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 
@@ -28,17 +29,17 @@ export function Footer({ className }: FooterProps) {
     >
       <p className="body-caption break-keep text-zinc-500">
         © {new Date().getFullYear()} 축지법 ·{" "}
-        <a href="mailto:chookjibup@email.com" className="hover:text-zinc-950">
-          chookjibup@email.com
+        <a href="mailto:chookjibup@gmail.com" className="hover:text-zinc-950">
+          chookjibup@gmail.com
         </a>
         <br />
         한국관광공사 OpenAPI 데이터 활용
       </p>
       <nav aria-label="정책" className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        <Link href="/policy/terms" className="body-caption text-zinc-600 hover:text-zinc-950">
+        <Link href={POLICY_TERMS_PATH} className="body-caption text-zinc-600 hover:text-zinc-950">
           이용약관
         </Link>
-        <Link href="/policy/privacy" className="body-caption text-zinc-600 hover:text-zinc-950">
+        <Link href={POLICY_PRIVACY_PATH} className="body-caption text-zinc-600 hover:text-zinc-950">
           개인정보처리방침
         </Link>
       </nav>

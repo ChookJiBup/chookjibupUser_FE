@@ -1,24 +1,24 @@
 "use client";
 
+import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export interface AgreementItem {
   label: string;
   required?: boolean;
+  viewHref?: string;
 }
 
 interface AgreementListProps {
   items: readonly AgreementItem[];
   checkedItems: readonly boolean[];
   onCheckedItemsChange: (checkedItems: boolean[]) => void;
-  onView?: (index: number) => void;
 }
 
 export function AgreementList({
   items,
   checkedItems,
   onCheckedItemsChange,
-  onView,
 }: AgreementListProps) {
   const allChecked = items.length > 0 && checkedItems.every(Boolean);
 
@@ -51,13 +51,16 @@ export function AgreementList({
               {item.required ? <span className="text-error">필수</span> : null}
               {item.label}
             </label>
-            <button
-              type="button"
-              onClick={() => onView?.(index)}
-              className="body-small text-zinc-700 underline"
-            >
-              보기
-            </button>
+            {item.viewHref ? (
+              <Link
+                href={item.viewHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="body-small shrink-0 text-zinc-700 underline"
+              >
+                보기
+              </Link>
+            ) : null}
           </div>
         ))}
       </div>
