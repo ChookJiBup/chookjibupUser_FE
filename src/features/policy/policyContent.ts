@@ -42,10 +42,7 @@ export function getPolicyContent(slug: PolicySlug): PolicyContent {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const path = require("node:path") as typeof import("node:path");
   const fileName = slug === "terms" ? "terms.md" : "privacy.md";
-  const body = readFileSync(
-    path.join(process.cwd(), "src/features/policy", fileName),
-    "utf8",
-  );
+  const body = readFileSync(path.join(process.cwd(), "src/features/policy", fileName), "utf8");
 
   return {
     title: POLICY_TITLES[slug],

@@ -15,11 +15,7 @@ interface AgreementListProps {
   onCheckedItemsChange: (checkedItems: boolean[]) => void;
 }
 
-export function AgreementList({
-  items,
-  checkedItems,
-  onCheckedItemsChange,
-}: AgreementListProps) {
+export function AgreementList({ items, checkedItems, onCheckedItemsChange }: AgreementListProps) {
   const allChecked = items.length > 0 && checkedItems.every(Boolean);
 
   return (
