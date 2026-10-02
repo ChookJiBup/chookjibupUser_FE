@@ -208,7 +208,11 @@ export function FestivalListPanel() {
                         href={`/festivals/${festival.id}`}
                         className="flex min-w-0 flex-1 items-center gap-3"
                       >
-                        <HomeThumbnail imageUrl={festival.imageUrl} compact />
+                        <HomeThumbnail
+                          imageUrl={festival.imageUrl}
+                          festivalId={festival.id}
+                          compact
+                        />
                         <FestivalSummary festival={festival} />
                       </Link>
                       <WishlistHeart festival={festival} showWhenLoggedOut />
@@ -296,13 +300,16 @@ export function FestivalListPanel() {
 function HomeThumbnail({
   compact = false,
   imageUrl,
+  festivalId,
 }: {
   compact?: boolean;
   imageUrl?: string | null;
+  festivalId?: string | null;
 }) {
   return (
     <FestivalImage
       imageUrl={imageUrl}
+      fallbackKey={festivalId}
       className={compact ? "h-12 w-[72px]" : "aspect-[3/2] w-full"}
     />
   );
@@ -312,7 +319,7 @@ function FestivalGridCard({ festival }: { festival: UserFestivalResponse }) {
   return (
     <article className="flex min-h-[240px] min-w-0 flex-col py-4">
       <Link href={`/festivals/${festival.id}`} className="block">
-        <HomeThumbnail imageUrl={festival.imageUrl} />
+        <HomeThumbnail imageUrl={festival.imageUrl} festivalId={festival.id} />
         <div className="mt-3">
           <FestivalSummary festival={festival} />
         </div>

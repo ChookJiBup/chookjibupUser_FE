@@ -245,7 +245,7 @@ function MyReviewListItem({
   return (
     <div className="flex flex-col gap-2 border-b border-zinc-200 py-4">
       <Link href={`/festivals/${review.festivalId}`} className="flex items-start gap-3">
-        <FestivalThumbnail imageUrl={review.festivalImageUrl} />
+        <FestivalThumbnail imageUrl={review.festivalImageUrl} festivalId={review.festivalId} />
         <div className="flex flex-1 flex-col gap-1">
           <div className="flex items-start gap-2">
             <p className="body-regular-bold min-w-0 flex-1 text-zinc-950">{review.festivalName}</p>

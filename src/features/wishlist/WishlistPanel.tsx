@@ -91,6 +91,7 @@ function WishlistFestivalCard({
             <FestivalImage
               key={index}
               imageUrl={item.imageUrl}
+              fallbackKey={item.id}
               className="aspect-[112.67/74.7] min-w-0 rounded-lg"
             />
           ))}

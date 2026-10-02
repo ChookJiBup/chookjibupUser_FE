@@ -86,14 +86,17 @@ export function FestivalThumbnail({
   size = 64,
   className = "",
   imageUrl,
+  festivalId,
 }: {
   size?: number;
   className?: string;
   imageUrl?: string | null;
+  festivalId?: string | null;
 }) {
   return (
     <FestivalImage
       imageUrl={imageUrl}
+      fallbackKey={festivalId}
       className={className}
       style={{ width: className ? undefined : size, height: size }}
     />
@@ -245,7 +248,7 @@ export function FestivalCard({ festival }: { festival: UserFestivalResponse }) {
       href={`/festivals/${festival.id}`}
       className="flex items-start gap-3 border-b border-zinc-200 py-4"
     >
-      <FestivalThumbnail imageUrl={festival.imageUrl} />
+      <FestivalThumbnail imageUrl={festival.imageUrl} festivalId={festival.id} />
       <div className="flex flex-1 flex-col gap-1">
         <div className="flex items-start gap-2">
           <p className="body-regular-bold min-w-0 flex-1 text-zinc-950">{festival.name}</p>
