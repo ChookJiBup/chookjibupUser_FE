@@ -534,9 +534,7 @@ function BoothDetailSheet({
       <div className="flex items-center justify-between border-y border-zinc-200 bg-zinc-50 px-4 py-1">
         <p className="body-caption text-zinc-950">실시간 혼잡도정보</p>
         <div className="flex items-center gap-1 text-zinc-400">
-          <p className="body-caption">
-            {fetchedAtLabel ?? "업데이트 기록 없음"}
-          </p>
+          <p className="body-caption">{fetchedAtLabel ?? "업데이트 기록 없음"}</p>
           <button
             type="button"
             aria-label="혼잡도 새로고침"
@@ -544,10 +542,7 @@ function BoothDetailSheet({
             disabled={isRefreshing}
             className="disabled:text-zinc-300"
           >
-            <UpdateIcon
-              aria-hidden
-              className={`size-3 ${isRefreshing ? "refresh-spin" : ""}`}
-            />
+            <UpdateIcon aria-hidden className={`size-3 ${isRefreshing ? "refresh-spin" : ""}`} />
           </button>
         </div>
       </div>

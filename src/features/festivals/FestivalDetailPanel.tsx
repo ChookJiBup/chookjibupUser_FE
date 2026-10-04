@@ -338,10 +338,7 @@ function CongestionSummary({
           className="body-caption flex items-center gap-1 text-zinc-400 disabled:text-zinc-300"
         >
           {fetchedTimeLabel ?? (updatedAt ? `최근 업데이트 ${updatedAt}` : "")}
-          <ReloadIcon
-            aria-hidden
-            className={`size-3 ${isRefreshing ? "refresh-spin" : ""}`}
-          />
+          <ReloadIcon aria-hidden className={`size-3 ${isRefreshing ? "refresh-spin" : ""}`} />
         </button>
       </div>
 
@@ -496,9 +493,7 @@ function RoadmapTab({
       <section className="flex flex-col gap-3 px-5 py-4">
         <div className="flex items-center justify-between gap-2">
           <p className="body-regular-bold text-zinc-950">부스 지도</p>
-          {updatedAt ? (
-            <p className="body-caption shrink-0 text-zinc-400">{updatedAt}</p>
-          ) : null}
+          {updatedAt ? <p className="body-caption shrink-0 text-zinc-400">{updatedAt}</p> : null}
         </div>
 
         {canShowMap ? (
