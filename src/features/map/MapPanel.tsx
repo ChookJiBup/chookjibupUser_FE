@@ -14,7 +14,7 @@ import {
 
 import { HeartIcon } from "@/components/icons/HeartIcon";
 import { getApiErrorMessage } from "@/lib/api/httpError";
-import { formatTimeAgo } from "@/lib/relativeTime";
+import { useFetchedTimeLabel } from "@/lib/fetchedTime";
 import { useUserAuthHasHydrated, useUserAuthStore } from "@/store/userAuthStore";
 import { StatusBadge, WishlistHeart, formatDateRange } from "@/features/festivals/FestivalCard";
 import { getFestivalCongestion, getFestivals } from "@/features/festivals/api";
@@ -509,6 +509,7 @@ function FestivalMarkerCard({
   onClose: () => void;
 }) {
   const isOngoing = festival.progressStatus === "ONGOING";
+  const [isRefreshAnimating, setIsRefreshAnimating] = useState(false);
 
   /*
     지도에 뜬 진행중 축제의 혼잡도는 마커를 그릴 때 이미 같은 키로 받아 뒀다. 여기서 같은
@@ -523,7 +524,20 @@ function FestivalMarkerCard({
   });
 
   const level = resolveOverallLevel(congestionQuery.data);
-  const updatedAgo = formatTimeAgo(congestionQuery.data?.updatedAt);
+  const updatedAt = useFetchedTimeLabel(congestionQuery.dataUpdatedAt);
+  const isRefreshing = congestionQuery.isFetching || isRefreshAnimating;
+
+  const refreshCongestion = async () => {
+    setIsRefreshAnimating(true);
+    try {
+      await Promise.all([
+        congestionQuery.refetch(),
+        new Promise((resolve) => window.setTimeout(resolve, 1600)),
+      ]);
+    } finally {
+      setIsRefreshAnimating(false);
+    }
+  };
 
   return (
     <div className="absolute inset-x-5 bottom-5 z-10 rounded-2xl bg-white shadow-lg">
@@ -545,20 +559,20 @@ function FestivalMarkerCard({
       {isOngoing ? (
         <>
           <div className="flex items-center justify-between border-t border-zinc-100 px-4 py-2">
-            <span className="body-small text-zinc-400">마지막 업데이트</span>
-            <span className="flex items-center gap-1.5">
-              {/* 갱신된 적이 없으면 시각 자체가 없다. "방금 전"으로 채우면 없는 값을 지어내는 셈이다. */}
-              <span className="body-small text-zinc-400">{updatedAgo ?? "기록 없음"}</span>
+            <span className="body-caption text-zinc-950">실시간 혼잡도</span>
+            <span className="body-caption flex items-center gap-1 text-zinc-400">
+              {/* 갱신된 적이 없으면 시각 자체가 없으므로 임의의 시각을 채우지 않는다. */}
+              <span>{updatedAt ?? "업데이트 기록 없음"}</span>
               <button
                 type="button"
                 aria-label="혼잡도 새로고침"
-                disabled={congestionQuery.isFetching}
-                onClick={() => void congestionQuery.refetch()}
+                disabled={isRefreshing}
+                onClick={() => void refreshCongestion()}
                 className="text-zinc-400 disabled:text-zinc-300"
               >
                 <UpdateIcon
                   aria-hidden
-                  className={`size-4 ${congestionQuery.isFetching ? "animate-spin" : ""}`}
+                  className={`size-3 ${isRefreshing ? "refresh-spin" : ""}`}
                 />
               </button>
             </span>

@@ -31,6 +31,7 @@ import {
   CONGESTION_TEXT_CLASS,
   resolveOverallLevel,
 } from "./congestionPresentation";
+import { useFetchedTimeLabel } from "@/lib/fetchedTime";
 import { formatServerUpdatedAt } from "@/lib/serverTime";
 import { useSuccessToast } from "@/components/ui/SuccessToast";
 import { FestivalInfoTab } from "./FestivalInfoTab";
@@ -50,17 +51,6 @@ const TAB_LABEL: Record<Tab, string> = {
   MAP: "부스지도",
   REVIEW: "리뷰",
 };
-
-/** 새로고침 직후에도 바뀐 시각을 확인할 수 있도록 조회 성공 시각을 초 단위로 표시한다. */
-function formatFetchedAt(timestamp: number): string {
-  const date = new Date(timestamp);
-  const hours = date.getHours();
-  const period = hours < 12 ? "오전" : "오후";
-  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${period} ${displayHour}:${minutes}:${seconds}`;
-}
 
 export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
   const [tab, setTab] = useState<Tab>("INFO");
@@ -243,6 +233,7 @@ export function FestivalDetailPanel({ festivalId }: { festivalId: string }) {
           progressStatus={festival.progressStatus}
           roadmap={festival.roadmap}
           congestion={congestionQuery.data ?? null}
+          congestionFetchedAt={congestionQuery.dataUpdatedAt}
         />
       ) : null}
       {tab === "REVIEW" ? <ReviewsPanel festivalId={festivalId} /> : null}
@@ -309,6 +300,7 @@ function CongestionSummary({
   query: ReturnType<typeof useQuery<FestivalCongestionResponse>>;
 }) {
   const [isRefreshAnimating, setIsRefreshAnimating] = useState(false);
+  const fetchedTimeLabel = useFetchedTimeLabel(query.dataUpdatedAt);
 
   if (query.isLoading) return null;
   if (query.fetchStatus === "paused" || query.isError) return null;
@@ -318,10 +310,7 @@ function CongestionSummary({
 
   const overallLevel = resolveOverallLevel(congestion);
   // 서버 데이터가 직전과 같아도 다시 조회한 사실을 알 수 있도록 실제 조회 성공 시각을 쓴다.
-  const updatedAt =
-    query.dataUpdatedAt > 0
-      ? formatFetchedAt(query.dataUpdatedAt)
-      : formatServerUpdatedAt(congestion.updatedAt);
+  const updatedAt = fetchedTimeLabel ?? formatServerUpdatedAt(congestion.updatedAt);
   const isRefreshing = query.isFetching || isRefreshAnimating;
 
   const refresh = async () => {
@@ -329,7 +318,7 @@ function CongestionSummary({
     try {
       await Promise.all([
         query.refetch(),
-        new Promise((resolve) => window.setTimeout(resolve, 600)),
+        new Promise((resolve) => window.setTimeout(resolve, 1600)),
       ]);
     } finally {
       setIsRefreshAnimating(false);
@@ -348,11 +337,8 @@ function CongestionSummary({
           aria-label="실시간 축제현황 새로고침"
           className="body-caption flex items-center gap-1 text-zinc-400 disabled:text-zinc-300"
         >
-          {updatedAt ? `${updatedAt} 기준` : ""}
-          <ReloadIcon
-            aria-hidden
-            className={`size-3 ${isRefreshing ? "animate-spin motion-reduce:animate-none" : ""}`}
-          />
+          {fetchedTimeLabel ?? (updatedAt ? `최근 업데이트 ${updatedAt}` : "")}
+          <ReloadIcon aria-hidden className={`size-3 ${isRefreshing ? "refresh-spin" : ""}`} />
         </button>
       </div>
 
@@ -430,14 +416,17 @@ function RoadmapTab({
   progressStatus,
   roadmap,
   congestion,
+  congestionFetchedAt,
 }: {
   festivalId: string;
   progressStatus: FestivalProgressStatus | null;
   roadmap: RoadmapResponse | null;
   congestion: FestivalCongestionResponse | null;
+  congestionFetchedAt: number;
 }) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const isOngoing = progressStatus === "ONGOING";
+  const fetchedTimeLabel = useFetchedTimeLabel(congestionFetchedAt);
 
   /*
     혼잡도와 배치도 노드는 혼잡도 응답의 `roadmapNodePublicId`로 잇는다. 예전에는 이어
@@ -497,16 +486,14 @@ function RoadmapTab({
     readOverlay(roadmap.presentation) !== null ||
     collectRoadmapPins(roadmap).length > 0;
 
-  const updatedAt = isOngoing ? formatServerUpdatedAt(congestion?.updatedAt) : null;
+  const updatedAt = isOngoing ? fetchedTimeLabel : null;
 
   return (
     <div className="flex flex-col">
       <section className="flex flex-col gap-3 px-5 py-4">
         <div className="flex items-center justify-between gap-2">
           <p className="body-regular-bold text-zinc-950">부스 지도</p>
-          {updatedAt ? (
-            <p className="body-caption text-zinc-400">최종 업데이트 {updatedAt}</p>
-          ) : null}
+          {updatedAt ? <p className="body-caption shrink-0 text-zinc-400">{updatedAt}</p> : null}
         </div>
 
         {canShowMap ? (

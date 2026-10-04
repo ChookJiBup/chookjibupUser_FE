@@ -20,6 +20,7 @@ import { HelpTooltip } from "@/components/ui/HelpTooltip";
 import { IconButton } from "@/components/ui/IconButton";
 import { API_ERROR_CODE, getApiErrorCode, getApiErrorMessage } from "@/lib/api/httpError";
 import { formatTimeAgo } from "@/lib/relativeTime";
+import { useFetchedTimeLabel } from "@/lib/fetchedTime";
 import { getFestivalCongestion, getFestivalDetail } from "./api";
 import { StatusBadge } from "./FestivalCard";
 import { RoadmapMapView, type BoothCongestionHint } from "./RoadmapMapView";
@@ -72,6 +73,7 @@ export function FestivalCongestionPanel({
   const [selectedLevels, setSelectedLevels] = useState<BoothCongestionLevel[]>([]);
   const [zoneSheetOpen, setZoneSheetOpen] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [isRefreshAnimating, setIsRefreshAnimating] = useState(false);
 
   /*
     축제 상세와 같은 쿼리 키를 쓴다 — 상세에서 넘어오면 이미 받아 둔 응답을 그대로
@@ -86,6 +88,18 @@ export function FestivalCongestionPanel({
     queryKey: ["festival-congestion", festivalId],
     queryFn: () => getFestivalCongestion(festivalId),
   });
+
+  const refreshCongestion = async () => {
+    setIsRefreshAnimating(true);
+    try {
+      await Promise.all([
+        congestionQuery.refetch(),
+        new Promise((resolve) => window.setTimeout(resolve, 1600)),
+      ]);
+    } finally {
+      setIsRefreshAnimating(false);
+    }
+  };
 
   const festival = festivalQuery.data;
   const congestion = congestionQuery.data;
@@ -364,8 +378,9 @@ export function FestivalCongestionPanel({
           {selectedBooth ? (
             <BoothDetailSheet
               booth={selectedBooth}
-              isRefreshing={congestionQuery.isFetching}
-              onRefresh={() => void congestionQuery.refetch()}
+              isRefreshing={congestionQuery.isFetching || isRefreshAnimating}
+              fetchedAt={congestionQuery.dataUpdatedAt}
+              onRefresh={() => void refreshCongestion()}
               onClose={() => setSelectedNodeId(null)}
             />
           ) : (
@@ -487,15 +502,17 @@ function CongestionPill({ level }: { level: BoothCongestionLevel | null }) {
 function BoothDetailSheet({
   booth,
   isRefreshing,
+  fetchedAt,
   onRefresh,
   onClose,
 }: {
   booth: BoothCongestionResponse;
   isRefreshing: boolean;
+  fetchedAt: number;
   onRefresh: () => void;
   onClose: () => void;
 }) {
-  const timeAgo = formatTimeAgo(booth.updatedAt);
+  const fetchedAtLabel = useFetchedTimeLabel(fetchedAt);
   return (
     <div
       className="absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-2xl bg-white"
@@ -516,16 +533,16 @@ function BoothDetailSheet({
 
       <div className="flex items-center justify-between border-y border-zinc-200 bg-zinc-50 px-4 py-1">
         <p className="body-caption text-zinc-950">실시간 혼잡도정보</p>
-        <div className="flex items-center gap-1">
-          <p className="body-caption text-zinc-500">{timeAgo ?? "갱신 기록 없음"}</p>
+        <div className="flex items-center gap-1 text-zinc-400">
+          <p className="body-caption">{fetchedAtLabel ?? "업데이트 기록 없음"}</p>
           <button
             type="button"
             aria-label="혼잡도 새로고침"
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="text-zinc-500 disabled:text-zinc-300"
+            className="disabled:text-zinc-300"
           >
-            <UpdateIcon aria-hidden className={`size-3 ${isRefreshing ? "animate-spin" : ""}`} />
+            <UpdateIcon aria-hidden className={`size-3 ${isRefreshing ? "refresh-spin" : ""}`} />
           </button>
         </div>
       </div>
