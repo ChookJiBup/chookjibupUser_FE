@@ -170,3 +170,16 @@ input:-webkit-autofill:active {
 *::-webkit-scrollbar {
   display: none;
 }
+
+/* 새로고침 SVG는 브라우저마다 회전 기준점이 달라지지 않도록 중심축을 명시한다. */
+@keyframes refresh-icon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.refresh-spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: refresh-icon-spin 1.4s linear infinite;
+}
